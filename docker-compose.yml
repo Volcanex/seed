@@ -1,0 +1,33 @@
+services:
+  app:
+    build: .
+    container_name: seed-app
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    # For dev: uncomment to live-mount source.
+    # volumes:
+    #   - .:/app
+
+  caddy:
+    image: caddy:2
+    container_name: seed-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      EMAIL: ${EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:
