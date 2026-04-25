@@ -1,22 +1,46 @@
+# Two deploy modes, one file. Pick by profile.
+#
+#   Behind an existing reverse proxy (host nginx, Cloudflare, etc.):
+#     docker compose up -d
+#       → app only, bound to 127.0.0.1:${HOST_PORT}.
+#
+#   Standalone box (this container owns 80/443, Caddy gets TLS):
+#     docker compose --profile standalone up -d
+#       → app + Caddy. Set DOMAIN and EMAIL in .env first.
+#
+# Dev: copy docker-compose.override.yml.example → docker-compose.override.yml
+# to live-mount source and enable uvicorn --reload.
+
 services:
   app:
     build: .
-    container_name: seed-app
+    image: ${COMPOSE_PROJECT_NAME:-seed}-app:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-seed}-app
     restart: unless-stopped
     environment:
       PORT: "8080"
-    expose:
-      - "8080"
-    # For dev: uncomment to live-mount source.
-    # volumes:
-    #   - .:/app
+      DEBUG: "${DEBUG:-0}"
+    # Bound to loopback so a host reverse proxy can reach it without
+    # exposing the app to the public internet. Harmless when running
+    # under the standalone profile too — Caddy talks to app:8080 over
+    # the compose network regardless.
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/api/_health',timeout=2).status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   caddy:
+    profiles: ["standalone"]
     image: caddy:2
-    container_name: seed-caddy
+    container_name: ${COMPOSE_PROJECT_NAME:-seed}-caddy
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"

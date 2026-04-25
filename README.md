@@ -22,15 +22,39 @@ python3 server.py           # Serve on http://localhost:8080
 Open `http://localhost:8080/` — the home page is served from
 `pages/home/`. Visit `/api/_routes` to see every mounted endpoint.
 
-### With Docker + Caddy
+### With Docker
+
+Two modes, one compose file. Pick the one that matches your host.
+
+**Behind an existing reverse proxy** (host nginx, Cloudflare tunnel, etc.):
 
 ```bash
 cp .env.example .env
-# edit DOMAIN=yourdomain.com for production, or leave as localhost
+# set HOST_PORT to a free loopback port, e.g. 5002
 docker compose up -d
 ```
 
-Caddy handles TLS automatically when `DOMAIN` is a real hostname.
+The app binds to `127.0.0.1:${HOST_PORT}`. Point your reverse proxy at
+that. Nothing is exposed to the public internet directly.
+
+**Standalone** (this container owns 80/443, automatic Let's Encrypt
+TLS via Caddy):
+
+```bash
+cp .env.example .env
+# set DOMAIN=yourdomain.com and EMAIL=you@example.com
+docker compose --profile standalone up -d
+```
+
+**Dev mode** (live source mounting + uvicorn `--reload`):
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+docker compose up -d
+```
+
+Compose auto-merges the override; edits to `pages/`, `core/`, and
+`server.py` take effect without a rebuild.
 
 ## Layout
 

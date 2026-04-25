@@ -1,19 +1,28 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PORT=8080
+
 WORKDIR /app
 
-# Install deps first so Docker caches this layer.
+# Install deps first so this layer caches across source edits.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source.
-COPY . .
+# Run as a non-root user. UID 1000 typically matches the host dev user,
+# which keeps volume-mounted file ownership sane.
+RUN useradd --uid 1000 --create-home --shell /bin/sh seed \
+ && chown seed:seed /app
 
-# Compile pages at image build time. Re-run at container start if pages
-# are mounted as a volume in dev.
-RUN python3 compile.py
+COPY --chown=seed:seed . .
+RUN chmod +x scripts/entrypoint.sh
 
-ENV PORT=8080
+USER seed
+
 EXPOSE 8080
 
-CMD ["python3", "server.py"]
+# Compile + serve. compile.py runs at start so volume-mounted source in
+# dev still produces fresh output/ on every container restart.
+ENTRYPOINT ["scripts/entrypoint.sh"]
