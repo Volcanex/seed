@@ -74,7 +74,8 @@ supports the pattern — see `discover_apis()` in `server.py`.
 python3 compile.py                    # Rebuild pages
 python3 scripts/compile_docs.py       # Rebuild the docs index below
 python3 server.py                     # Run locally on :8080
-docker compose up -d                  # Run via Docker + Caddy
+docker compose up -d                  # Docker — behind a reverse proxy (binds 127.0.0.1:${HOST_PORT})
+docker compose --profile standalone up -d   # Docker — standalone with Caddy/TLS on 80/443
 pytest                                # Run tests
 ```
 
