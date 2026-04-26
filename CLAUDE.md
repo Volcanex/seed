@@ -46,6 +46,116 @@ the block between the sentinels.
 
 Do not create standalone `.md` files. There is no `docs/` directory.
 
+## Optional features (keep, replace, or delete)
+
+The seed ships a few opinionated features that real projects almost
+always end up wanting. Each one is independent — delete the file(s) if
+you don't want it; the rest of the framework keeps working.
+
+### Admin auth + gate (`core/api/admin.py` + `_admin_gated()` in `server.py`)
+
+Cookie-based, single-user, password-gated. Any request to a path under
+`/admin/*` that isn't `/admin/login` redirects to `/admin/login` unless
+the visitor has the admin cookie. Configure via env vars:
+
+| Var | Default | What |
+|---|---|---|
+| `ADMIN_COOKIE` | `seed_admin` | Cookie name |
+| `ADMIN_COOKIE_VALUE` | `ok` | Cookie value (rarely changed) |
+| `ADMIN_PASSWORD` | `change-me` | Required for login. Set this. |
+
+Endpoints (auto-mounted): `POST /api/admin/login`, `POST /api/admin/logout`,
+`GET /api/admin/verify`, and `POST /api/admin/tests/run` (runs `pytest`
+synchronously, admin-only — useful as a "re-run the suite from the
+browser" button). Other API modules can gate endpoints via
+`from core.api.admin import is_admin, require_admin`.
+
+Upgrade path: when multi-user auth is needed, swap the constant cookie
+value for an HMAC-signed token and add a session table. The
+`is_admin()` / `require_admin()` surface stays the same.
+
+### SQLite scaffolding (`core/db.py`)
+
+Three things: an env-var-overridable `DB_PATH` (`SEED_DB_PATH`), an
+idempotent `init_db()`, and a `get_conn()` context manager with
+`row_factory = sqlite3.Row` and auto commit/rollback.
+
+The shipped `SCHEMA` is just a `kv` table to make the smoke test work.
+**Replace it with your project's schema** (or split into a
+"migrations" directory for larger projects). Keep the surface
+(`init_db`, `get_conn`) — endpoints `from core.db import get_conn` and
+call it the same way Postgres-bound code would.
+
+### Tree-walk fallback (`server.py`)
+
+After the direct / slug / index lookups fail, the catch-all tries each
+prefix of the path against the matching compiled HTML. So a single
+`report.html` in `output/` serves `/report/abc`, `/report/abc/def`,
+etc. The HTML reads the slug from `location.pathname` and fetches via
+its API — no per-record compilation, no FastAPI dynamic routes for
+content-only pages.
+
+Pairs naturally with the **slug-with-slashes** support in `compile.py`:
+a page with slug `admin/audit` writes its HTML into a nested directory
+under the output tree and tree-walk-serves every `/admin/audit/<id>`.
+
+### Hamburger drawer + admin-aware nav (`core/static/css/nav.css` + `core/static/js/nav.js`)
+
+Burger button → slide-in drawer with sectioned links. On load, the JS
+hits `/api/admin/verify`; if `admin: true`, it reveals the admin
+section (and hides the "Admin" login link). Drop-in with the shipped
+`shell.html` — rebrand by overriding the CSS variables in
+`core/static/css/base.css`.
+
+If you delete `core/api/admin.py`, the verify call 404s harmlessly and
+the drawer keeps showing only the public sections.
+
+### Token registry in `compile.py`
+
+`<!-- seed:NAME -->` markers in `content.html` get replaced by registered
+renderers. Use it for fragments computed at build time from data the
+page itself doesn't carry (a manifest, env, a database).
+
+```python
+# myproject/setup.py — imported by your build before main()
+from compile import register_token
+register_token("nav-links", lambda ctx: render_links_from_db())
+```
+
+### Manifest auto-stub generator
+
+Drop a JSON manifest at `data/manifest.json` (default path; override
+via `SEED_MANIFEST_PATH`) with shape
+`{"items": [{"slug": "...", "title": "..."}]}` and `compile.py` emits
+a default page for every entry without a hand-written
+`pages/<prefix>-<slug>/`. Configure via env vars
+(`SEED_MANIFEST_PATH`, `SEED_MANIFEST_PREFIX`, `SEED_MANIFEST_TEMPLATE`
+— see the docstring in `compile.py`). Useful when a content set is
+large enough that every entry should have a URL on day one, but most
+won't get a custom page.
+
+### `body_class` field in `config.json`
+
+Set `"body_class": "is-something"` and `shell.html` interpolates it on
+`<body>`. Lets one page declare a layout variant without forking the
+template (login page, wide admin layout, print-friendly variant).
+
+### `scripts/check_docs.py` — CLAUDE.md health check
+
+Walks every `CLAUDE.md`, asserts that every `code`-spanned file path
+exists on disk, and that the root `CLAUDE.md` doesn't drift past 400
+lines. Configure via `.check_docs.json` at the project root (skip
+dirs, planned paths, custom line cap). Run as part of CI; agents must
+run before opening a PR.
+
+### `agents/` — kickoff briefs for parallel integration work
+
+`agents/CLAUDE.md` documents the worktree workflow + the prune rule.
+`agents/_template.md` is a copy-paste starter for a new integration
+brief. The whole pattern is project-agnostic — see the file for
+details. **This is the most valuable single extraction** if your
+project ever has more than one humanoid working on it at once.
+
 ## Optional: Core / Product Split
 
 By default everything lives in `pages/` and `core/`. When a project grows
@@ -84,11 +194,13 @@ pytest                                # Run tests
 <!-- DOCS:START -->
 | Path | Summary |
 |------|---------|
+| `agents/CLAUDE.md` | Agents — kickoff prompts for parallel integrations |
+| `core/api/CLAUDE.md` | core/api — shared API routers |
 | `core/templates/CLAUDE.md` | Templates — the shared shell |
 | `pages/CLAUDE.md` | Pages |
 | `tests/CLAUDE.md` | Tests |
 
-_Auto-compiled 2026-04-24 11:05 UTC — 3 doc(s) found._
+_Auto-compiled 2026-04-26 13:03 UTC — 5 doc(s) found._
 <!-- DOCS:END -->
 
 ## Extending the Seed
