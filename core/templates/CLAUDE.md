@@ -23,6 +23,14 @@ built-in — start simple; add when you have a real need.
 
 ## Styling
 
-`core/static/base.css` is copied to `output/css/base.css` at compile
-time. Page-specific styles go in that page's `content.html` inside a
-`<style>` block.
+`core/static/css/base.css` is copied to `output/css/base.css` at compile
+time, alongside `nav.css` and `admin.css`. Page-specific styles go in
+that page's `content.html` inside a `<style>` block.
+
+## body_class
+
+`shell.html` interpolates `{{ body_class }}` on `<body>`. Set
+`"body_class": "is-something"` in a page's `config.json` to scope
+overrides without polluting global stylesheets. Useful for the login
+page (`is-admin-login`), wide admin pages (`is-admin-page`), and any
+page-shape-changes that don't deserve their own template.
