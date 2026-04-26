@@ -19,10 +19,21 @@ import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+
+# Admin auth (cookie-based, single-user). Configurable via env vars so
+# downstream projects can rename the cookie without forking server.py.
+# The matching login/logout/verify endpoints live in core/api/admin.py.
+ADMIN_COOKIE = os.environ.get("ADMIN_COOKIE", "seed_admin")
+ADMIN_VALUE = os.environ.get("ADMIN_COOKIE_VALUE", "ok")
+
+
+def _is_admin(request: Request) -> bool:
+    return request.cookies.get(ADMIN_COOKIE) == ADMIN_VALUE
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = PROJECT_ROOT / "output"
@@ -38,6 +49,12 @@ def _mount_router(app: FastAPI, py_file: Path, prefix: str, group: str) -> None:
         return
 
     module = importlib.util.module_from_spec(spec)
+    # Register in sys.modules BEFORE exec — Pydantic v2 (and any forward
+    # references) need the module reachable by its qualified name to
+    # rebuild model schemas. Without this you get
+    # "TypeAdapter[X] is not fully defined" at request time as soon as
+    # an endpoint declares a body model. Don't revert.
+    sys.modules[module_name] = module
     parent = str(py_file.parent.parent)
     if parent not in sys.path:
         sys.path.insert(0, parent)
@@ -45,6 +62,7 @@ def _mount_router(app: FastAPI, py_file: Path, prefix: str, group: str) -> None:
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
+        sys.modules.pop(module_name, None)
         print(f"  ✗ {py_file.relative_to(PROJECT_ROOT)}: {exc}")
         return
 
@@ -137,11 +155,35 @@ if OUTPUT_DIR.exists():
             app.mount(f"/{sub}", StaticFiles(directory=p), name=sub)
 
 
+def _admin_gated(path: str, request: Request) -> "RedirectResponse | None":
+    """Return a redirect-to-login response if path is admin-only and the
+    visitor isn't authenticated. None means: pass through.
+
+    Generic gate: any path under `/admin` (except `/admin/login`) requires
+    the admin cookie. Configure cookie + redirect via env vars at the top
+    of this file. The matching auth endpoints live in core/api/admin.py.
+    """
+    parts = path.strip("/").split("/")
+    if not parts or parts[0] != "admin":
+        return None
+    # Login page itself is public
+    if len(parts) >= 2 and parts[1] == "login":
+        return None
+    if _is_admin(request):
+        return None
+    return RedirectResponse(url="/admin/login", status_code=302)
+
+
 @app.get("/{path:path}", include_in_schema=False)
-async def serve_pages(path: str):
+async def serve_pages(path: str, request: Request):
     """Serve compiled HTML pages with clean URLs."""
     if path.startswith("api/"):
         return JSONResponse({"error": "not found"}, status_code=404)
+
+    # Admin auth gate — only fires if the project has an /admin/* page.
+    redirect = _admin_gated(path, request)
+    if redirect is not None:
+        return redirect
 
     if path in ("", "/"):
         index = OUTPUT_DIR / "home.html"
@@ -163,6 +205,18 @@ async def serve_pages(path: str):
     index_html = OUTPUT_DIR / path / "index.html"
     if index_html.is_file():
         return FileResponse(index_html)
+
+    # Tree-walk fallback for dynamic URLs:
+    #   /report/{any-slug}        → output/report.html
+    #   /admin/audit/{any-slug}   → output/admin/audit.html
+    # The first matching prefix wins. Lets one compiled HTML file handle
+    # every variant of /report/X without per-slug compilation. The page
+    # reads the slug from `location.pathname` and fetches via its API.
+    parts = path.strip("/").split("/")
+    for i in range(len(parts) - 1, 0, -1):
+        candidate = OUTPUT_DIR / ("/".join(parts[:i]) + ".html")
+        if candidate.is_file():
+            return FileResponse(candidate)
 
     return HTMLResponse(_placeholder_404(path), status_code=404)
 
