@@ -47,6 +47,7 @@ Usage: python3 compile.py
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -70,7 +71,11 @@ DEFAULTS = {
     "body_class": "",
 }
 
-TOKEN_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+# `{{ key }}` substitutes context[key] HTML-escaped; `{{! key }}` keeps
+# the value raw (use this when the value is already-rendered HTML, e.g.
+# the page body inside the shell). Escape-by-default keeps user data
+# from a manifest/CMS/database from becoming an injection vector.
+TOKEN_RE = re.compile(r"\{\{\s*(!?)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
 # Slugs become file paths under output/. Allow letters, digits, dash,
 # underscore, and forward-slash (for slug-with-slashes). Reject anything
@@ -137,8 +142,11 @@ def load_shell() -> str:
 
 def render(template: str, context: dict) -> str:
     def sub(match: re.Match) -> str:
-        key = match.group(1)
-        return str(context.get(key, match.group(0)))
+        raw_marker, key = match.group(1), match.group(2)
+        if key not in context:
+            return match.group(0)  # unknown key — leave the placeholder
+        value = str(context[key])
+        return value if raw_marker == "!" else html.escape(value, quote=True)
     return TOKEN_RE.sub(sub, template)
 
 
@@ -187,6 +195,20 @@ def compile_page(page_dir: Path, shell: str) -> tuple[Path | None, dict | None, 
     return out_path, config, False
 
 
+def clean_output() -> None:
+    """Wipe `output/` before rebuilding so deleted pages don't linger.
+    `compile.py` owns this directory entirely — anything you put here
+    by hand will be removed on the next build. Use `core/static/` for
+    files that should be copied in by `copy_static()`."""
+    if not OUTPUT_DIR.is_dir():
+        return
+    for item in OUTPUT_DIR.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+
+
 def copy_static() -> int:
     if not STATIC_SRC.is_dir():
         return 0
@@ -217,9 +239,12 @@ DEFAULT_STUB_BODY = (
 
 
 def _fill_stub(template: str, **fields: str) -> str:
+    """Substitute `{key}` placeholders. User-supplied fields (title,
+    description) are HTML-escaped; structural fields (slug, prefix) are
+    already validated by `_safe_slug`, so escape is a harmless no-op."""
     out = template
     for key, value in fields.items():
-        out = out.replace("{" + key + "}", str(value))
+        out = out.replace("{" + key + "}", html.escape(str(value), quote=True))
     return out
 
 
@@ -296,6 +321,7 @@ def main() -> None:
         sys.exit(f"ERROR: {PAGES_DIR} not found")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
+    clean_output()
     shell = load_shell()
 
     print("Compiling pages...")

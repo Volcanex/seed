@@ -30,6 +30,12 @@ pages/
 `core/templates/shell.html`, and writes `output/{slug}.html`. The server
 serves `output/` as static.
 
+Shell substitutions are HTML-escaped by default: `{{ title }}` escapes,
+`{{! body }}` stays raw. The shipped shell uses `{{! content }}` for
+the page body (already-rendered HTML) and `{{ ... }}` everywhere else.
+This stays safe when config values come from a manifest, CMS, or
+database rather than the developer.
+
 ### APIs
 
 Any file named `api.py` (in `pages/{slug}/`) or `*.py` (in `core/api/` or
@@ -62,7 +68,14 @@ the visitor has the admin cookie. Configure via env vars:
 |---|---|---|
 | `ADMIN_COOKIE` | `seed_admin` | Cookie name |
 | `ADMIN_COOKIE_VALUE` | `ok` | Cookie value (rarely changed) |
+| `ADMIN_COOKIE_SECURE` | `1` | Cookie `Secure` flag. `0` only for HTTP-only deploys. |
 | `ADMIN_PASSWORD` | `change-me` | Required for login. Set this. |
+
+Hardening on by default: constant-time password compare, login rate
+limit (5 failures per IP per 60s, sliding window), `Secure` cookies,
+and a stderr WARNING at module load if `ADMIN_PASSWORD` is unset or
+still the default — silent shipping of `change-me` is the canonical
+seed footgun.
 
 Endpoints (auto-mounted): `POST /api/admin/login`, `POST /api/admin/logout`,
 `GET /api/admin/verify`, and `POST /api/admin/tests/run` (runs `pytest`
@@ -70,9 +83,12 @@ synchronously, admin-only — useful as a "re-run the suite from the
 browser" button). Other API modules can gate endpoints via
 `from core.api.admin import is_admin, require_admin`.
 
-Upgrade path: when multi-user auth is needed, swap the constant cookie
-value for an HMAC-signed token and add a session table. The
-`is_admin()` / `require_admin()` surface stays the same.
+**This module is the placeholder, not the destination.** The cookie
+value is constant (`"ok"`) — anyone who guesses the cookie name can
+forge admin without ever seeing the password. Replace with HMAC-signed
+tokens (and add a session table for multi-user) before exposing a
+seed-derived project to the public internet. The `is_admin()` /
+`require_admin()` surface stays the same across that upgrade.
 
 ### SQLite scaffolding (`core/db.py`)
 
@@ -105,6 +121,11 @@ segments in URLs never escape the output dir. The matching defence on
 the build side is slug sanitisation in `compile.py`: a `slug` that
 contains `..`, leading `/`, or `\` fails the build with a non-zero
 exit code.
+
+`compile.py` also wipes `output/` at the start of every build, so a
+page deleted from `pages/` doesn't linger as a serveable URL. compile
+owns the directory entirely — put committed assets in `core/static/`,
+not `output/`.
 
 ### Hamburger drawer + admin-aware nav (`core/static/css/nav.css` + `core/static/js/nav.js`)
 
@@ -207,7 +228,7 @@ pytest                                # Run tests
 | `pages/CLAUDE.md` | Pages |
 | `tests/CLAUDE.md` | Tests |
 
-_Auto-compiled 2026-04-27 22:24 UTC — 5 doc(s) found._
+_Auto-compiled 2026-04-27 23:07 UTC — 5 doc(s) found._
 <!-- DOCS:END -->
 
 ## Extending the Seed

@@ -63,7 +63,7 @@ def test_slug_with_slashes_writes_nested_html(tmp_path, monkeypatch):
     }))
     (page_dir / "content.html").write_text("<h1>Foo</h1>")
 
-    shell = "<html><body>{{ content }}</body></html>"
+    shell = "<html><body>{{! content }}</body></html>"
     out, _, err = mod.compile_page(page_dir, shell)
     assert err is False
     assert out is not None
@@ -84,11 +84,11 @@ def test_body_class_token_interpolates_into_shell(tmp_path, monkeypatch):
     }))
     (page_dir / "content.html").write_text("body")
 
-    shell = '<html><body class="{{ body_class }}">{{ content }}</body></html>'
+    shell = '<html><body class="{{ body_class }}">{{! content }}</body></html>'
     out, _, err = mod.compile_page(page_dir, shell)
     assert err is False
-    html = out.read_text()
-    assert 'class="is-special"' in html
+    html_out = out.read_text()
+    assert 'class="is-special"' in html_out
 
 
 def test_manifest_auto_stub_emits_pages_for_unhandled_items(tmp_path, monkeypatch):
@@ -117,6 +117,50 @@ def test_manifest_auto_stub_emits_pages_for_unhandled_items(tmp_path, monkeypatc
     text = (tmp_path / "output" / "thing-alpha.html").read_text()
     assert "Alpha" in text
     assert "is-stub" in text
+
+
+def test_render_escapes_values_by_default():
+    """A title containing HTML must NOT land in the document raw."""
+    mod = _fresh_compile_module()
+    out = mod.render(
+        '<title>{{ title }}</title><meta name="d" content="{{ d }}">',
+        {"title": "<script>alert(1)</script>", "d": '"x" onerror="y'},
+    )
+    assert "<script>alert(1)</script>" not in out
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in out
+    assert '"x"' not in out  # quote inside attribute is escaped
+
+
+def test_render_raw_marker_passes_html_through():
+    """`{{! key }}` keeps the value raw — used for the page body."""
+    mod = _fresh_compile_module()
+    out = mod.render("<main>{{! body }}</main>", {"body": "<h1>hi</h1>"})
+    assert out == "<main><h1>hi</h1></main>"
+
+
+def test_render_unknown_keys_left_in_place():
+    """Unknown keys still leave the placeholder visible (debug aid)."""
+    mod = _fresh_compile_module()
+    assert mod.render("{{ unknown }}", {}) == "{{ unknown }}"
+    assert mod.render("{{! unknown }}", {}) == "{{! unknown }}"
+
+
+def test_clean_output_wipes_stale_files_and_dirs(tmp_path, monkeypatch):
+    """A page deleted from `pages/` must not survive a recompile."""
+    mod = _fresh_compile_module()
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / "old.html").write_text("STALE")
+    (output / "css").mkdir()
+    (output / "css" / "old.css").write_text("STALE")
+    (output / "admin").mkdir()
+    (output / "admin" / "audit.html").write_text("STALE")
+
+    monkeypatch.setattr(mod, "OUTPUT_DIR", output)
+    mod.clean_output()
+
+    assert output.is_dir()  # directory itself preserved
+    assert list(output.iterdir()) == []  # but emptied
 
 
 def test_unsafe_slug_is_rejected(tmp_path, monkeypatch):

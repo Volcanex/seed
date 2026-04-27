@@ -37,6 +37,19 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limit():
+    """Each test starts with a clean per-IP login bucket. Otherwise the
+    rate-limit-exhaustion test would poison everything that runs after."""
+    import sys as _sys
+    admin_mod = _sys.modules.get("core.api.admin")
+    if admin_mod is not None:
+        admin_mod._LOGIN_ATTEMPTS.clear()
+    yield
+    if admin_mod is not None:
+        admin_mod._LOGIN_ATTEMPTS.clear()
+
+
 def test_admin_endpoints_mounted(client):
     """The admin module must auto-discover and expose its endpoints."""
     r = client.get("/api/_routes")
@@ -90,3 +103,45 @@ def test_admin_login_path_is_public(client):
     # expect a 404 — but crucially NOT a 302 redirect to itself.
     r = client.get("/admin/login", follow_redirects=False)
     assert r.status_code != 302
+
+
+def test_login_rate_limit_kicks_in_after_threshold(client):
+    """5 failed attempts → 401; the 6th → 429. Even a correct password
+    after the threshold is blocked until the window expires."""
+    for _ in range(5):
+        r = client.post("/api/admin/login", json={"password": "wrong"})
+        assert r.status_code == 401
+    r6 = client.post("/api/admin/login", json={"password": "wrong"})
+    assert r6.status_code == 429
+    r7 = client.post("/api/admin/login", json={"password": "test-pw"})
+    assert r7.status_code == 429
+
+
+def test_successful_login_clears_rate_limit(client):
+    """Legit usage isn't penalised — a successful login resets the bucket."""
+    for _ in range(4):
+        r = client.post("/api/admin/login", json={"password": "wrong"})
+        assert r.status_code == 401
+    ok = client.post("/api/admin/login", json={"password": "test-pw"})
+    assert ok.status_code == 200
+    # Bucket now empty — five more failures should still be 401, not 429
+    for _ in range(5):
+        r = client.post("/api/admin/login", json={"password": "wrong"})
+        assert r.status_code == 401
+
+
+def test_cookie_secure_defaults_to_true(monkeypatch):
+    """Production default: cookie carries the Secure flag. Conftest only
+    drops it for the TestClient because TestClient uses http://."""
+    monkeypatch.delenv("ADMIN_COOKIE_SECURE", raising=False)
+    import sys as _sys
+    admin_mod = _sys.modules.get("core.api.admin")
+    assert admin_mod is not None
+    assert admin_mod._admin_cookie_secure() is True
+
+
+def test_cookie_secure_can_be_disabled(monkeypatch):
+    monkeypatch.setenv("ADMIN_COOKIE_SECURE", "0")
+    import sys as _sys
+    admin_mod = _sys.modules.get("core.api.admin")
+    assert admin_mod._admin_cookie_secure() is False

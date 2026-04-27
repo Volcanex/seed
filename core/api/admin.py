@@ -9,15 +9,24 @@ matching endpoints:
   GET  /api/admin/verify   — `{admin: bool}` for client-side conditionals
   POST /api/admin/tests/run — run pytest from the browser, admin-gated
 
-Security model: this is a single-user, internal-only gate. Cookie value
-is constant ("ok") — the gate is the password. Upgrade to real auth
-(HMAC-signed tokens, sessions, multi-user) when a project needs it.
+Security model: single-user, internal-only gate. Cookie value is
+constant ("ok") — the gate is the password. **Replace this with real
+auth (HMAC-signed tokens, sessions, multi-user) before exposing a
+seed-derived project to the public internet.** That's the seed
+contract — this module is the placeholder, not the destination.
+
+Hardening included by default:
+- Login is rate-limited (5 failures per IP per 60s).
+- Cookie is `Secure` by default; set `ADMIN_COOKIE_SECURE=0` to opt out.
+- Password compared with `hmac.compare_digest` (constant time).
+- Module load logs a loud WARNING if `ADMIN_PASSWORD` is unset/default.
 
 Configure via env vars (also read by `server.py`):
 
-  ADMIN_COOKIE        — cookie name              (default: "seed_admin")
-  ADMIN_COOKIE_VALUE  — cookie value             (default: "ok")
-  ADMIN_PASSWORD      — required to log in       (default: "change-me")
+  ADMIN_COOKIE         — cookie name             (default: "seed_admin")
+  ADMIN_COOKIE_VALUE   — cookie value            (default: "ok")
+  ADMIN_COOKIE_SECURE  — 1/0; cookie Secure flag (default: "1")
+  ADMIN_PASSWORD       — required to log in      (default: "change-me")
 """
 
 from __future__ import annotations
@@ -27,6 +36,7 @@ import os
 import subprocess
 import sys
 import time
+from collections import deque
 from pathlib import Path
 
 # Reach project root when this module is auto-mounted by importlib —
@@ -45,9 +55,61 @@ router = APIRouter(tags=["admin"])
 ADMIN_COOKIE = os.environ.get("ADMIN_COOKIE", "seed_admin")
 ADMIN_VALUE = os.environ.get("ADMIN_COOKIE_VALUE", "ok")
 
+# Per-IP login rate limit. In-memory sliding window — closes brute force
+# without pulling in a real auth dependency. Successful login clears
+# the bucket so legit usage isn't penalised.
+_RATE_WINDOW = 60.0   # seconds
+_RATE_LIMIT = 5       # failures per window per IP
+_LOGIN_ATTEMPTS: dict[str, deque] = {}
+
+# Loud warning at module load if the password is unset or still the
+# default. The whole gate is the password — silently shipping
+# "change-me" is the canonical seed footgun. Print once, at startup.
+_pw_env = os.environ.get("ADMIN_PASSWORD")
+if not _pw_env or _pw_env == "change-me":
+    print(
+        "WARNING: ADMIN_PASSWORD unset or still 'change-me' — admin "
+        "auth is disabled in everything but name. Set ADMIN_PASSWORD "
+        "in your environment before deploying.",
+        file=sys.stderr,
+    )
+
 
 def _admin_password() -> str:
     return os.environ.get("ADMIN_PASSWORD", "change-me")
+
+
+def _admin_cookie_secure() -> bool:
+    """Cookie `Secure` flag — defaults to True so a deploy that ever
+    skips TLS doesn't leak the admin cookie. Set `ADMIN_COOKIE_SECURE=0`
+    only for HTTP-only deploys (rare; usually means missing TLS)."""
+    return os.environ.get("ADMIN_COOKIE_SECURE", "1").lower() not in ("0", "false", "no")
+
+
+def _client_ip(request: Request) -> str:
+    """Best-effort client IP for rate limiting. Trusts X-Forwarded-For
+    because the typical seed deploy is behind nginx/Caddy. Make sure
+    your proxy strips this header from external requests (nginx and
+    Caddy both do by default)."""
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",", 1)[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _too_many_failures(ip: str) -> bool:
+    bucket = _LOGIN_ATTEMPTS.get(ip)
+    if not bucket:
+        return False
+    cutoff = time.monotonic() - _RATE_WINDOW
+    while bucket and bucket[0] < cutoff:
+        bucket.popleft()
+    return len(bucket) >= _RATE_LIMIT
+
+
+def _record_login_failure(ip: str) -> None:
+    bucket = _LOGIN_ATTEMPTS.setdefault(ip, deque())
+    bucket.append(time.monotonic())
 
 
 def is_admin(request: Request) -> bool:
@@ -67,18 +129,24 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-def login(req: LoginRequest, response: Response):
+def login(req: LoginRequest, request: Request, response: Response):
+    ip = _client_ip(request)
+    if _too_many_failures(ip):
+        raise HTTPException(429, "too many attempts; slow down")
     # Constant-time comparison so a remote attacker can't lift the
     # password byte-by-byte off response timing. Trivial cost, real win.
     if not hmac.compare_digest(req.password, _admin_password()):
+        _record_login_failure(ip)
         raise HTTPException(401, "wrong password")
+    # Successful login — clear the bucket so legit usage isn't penalised.
+    _LOGIN_ATTEMPTS.pop(ip, None)
     response.set_cookie(
         ADMIN_COOKIE,
         ADMIN_VALUE,
         max_age=60 * 60 * 24 * 30,  # 30 days
         httponly=True,
         samesite="lax",
-        secure=False,  # nginx/Caddy terminates TLS; fine for internal use
+        secure=_admin_cookie_secure(),
         path="/",
     )
     return {"ok": True}

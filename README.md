@@ -113,9 +113,19 @@ build step both have to stay honest:
   segments). The tree-walk fallback uses the same check.
 - **Slug sanitisation.** `compile.py` rejects any `slug` that contains
   `..`, leading `/`, or `\`. A bad slug fails the build with a
-  non-zero exit code so CI catches it.
+  non-zero exit code.
+- **Escape-by-default rendering.** Shell substitutions are
+  HTML-escaped (`{{ title }}`); use `{{! key }}` only for
+  already-rendered HTML.
+- **Output is wiped on every build.** Deleted pages don't linger as
+  serveable URLs.
 - **Loopback by default.** `python3 server.py` binds `127.0.0.1`
   unless `HOST=0.0.0.0` is set explicitly.
+- **Admin login hardened.** Constant-time password compare,
+  rate-limited (5 failures per IP per 60s), `Secure` cookies, and a
+  loud startup warning if `ADMIN_PASSWORD` is unset or still the
+  default. The auth itself is a placeholder — replace before shipping
+  anywhere public.
 - **Build is fail-loud.** Invalid `config.json`, unsafe slugs, and
   malformed manifest entries all exit non-zero.
 
