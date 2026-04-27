@@ -16,11 +16,15 @@ cd my-site
 pip install -r requirements.txt
 
 python3 compile.py          # Build pages into output/
-python3 server.py           # Serve on http://localhost:8080
+python3 server.py           # Serve on http://127.0.0.1:8080
 ```
 
-Open `http://localhost:8080/` — the home page is served from
+Open `http://127.0.0.1:8080/` — the home page is served from
 `pages/home/`. Visit `/api/_routes` to see every mounted endpoint.
+
+The local server binds to loopback (`127.0.0.1`) by default so a
+casual run doesn't expose anything on the LAN. Set `HOST=0.0.0.0` to
+bind all interfaces. The Docker image already does this.
 
 ### With Docker
 
@@ -98,6 +102,22 @@ When a project grows to host multiple independent products on one infra,
 introduce top-level product directories alongside `pages/` (see root
 `CLAUDE.md` for the core/product split). Most projects never need this —
 start without it.
+
+## Safety guarantees
+
+Small framework, small surface — but the static-file server and the
+build step both have to stay honest:
+
+- **Output-dir confinement.** The catch-all route resolves every URL
+  path under `output/` and rejects anything that escapes (e.g. `..`
+  segments). The tree-walk fallback uses the same check.
+- **Slug sanitisation.** `compile.py` rejects any `slug` that contains
+  `..`, leading `/`, or `\`. A bad slug fails the build with a
+  non-zero exit code so CI catches it.
+- **Loopback by default.** `python3 server.py` binds `127.0.0.1`
+  unless `HOST=0.0.0.0` is set explicitly.
+- **Build is fail-loud.** Invalid `config.json`, unsafe slugs, and
+  malformed manifest entries all exit non-zero.
 
 ## Why this exists
 

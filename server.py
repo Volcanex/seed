@@ -37,8 +37,21 @@ def _is_admin(request: Request) -> bool:
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = PROJECT_ROOT / "output"
+_OUTPUT_RESOLVED = OUTPUT_DIR.resolve()
 
 _discovered: list[dict] = []
+
+
+def _safe_under_output(candidate: Path) -> Path | None:
+    """Resolve `candidate` and confirm it stays under OUTPUT_DIR.
+    Defends the catch-all serve_pages route against `..` traversal in
+    the URL path (Starlette doesn't normalise these for us)."""
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(_OUTPUT_RESOLVED)
+    except (ValueError, OSError):
+        return None
+    return resolved if resolved.is_file() else None
 
 
 def _mount_router(app: FastAPI, py_file: Path, prefix: str, group: str) -> None:
@@ -105,8 +118,17 @@ def discover_apis(app: FastAPI) -> None:
             _mount_router(app, api_py, f"/api/{slug}", f"pages.{slug}")
 
     # Any other top-level */api/*.py → /api/{top}/{name}
+    # Skip rules: dot-prefixed dirs, common cache/build dirs, and the
+    # framework dirs already handled above. New top-level dirs (data/,
+    # node_modules/, etc.) are skipped automatically by the dot/cache
+    # rule or by the "no api/ subdir" check below — no blocklist edits
+    # needed when you add one.
+    _framework_dirs = {"core", "pages", "output", "tests", "scripts", "static"}
+    _cache_dirs = {"__pycache__", "venv", ".venv", "node_modules", "dist", "build"}
     for top in sorted(PROJECT_ROOT.iterdir()):
-        if not top.is_dir() or top.name in {"core", "pages", "output", "tests", "scripts", ".git", ".claude", "static"}:
+        if not top.is_dir():
+            continue
+        if top.name.startswith(".") or top.name in _framework_dirs or top.name in _cache_dirs:
             continue
         api_dir = top / "api"
         if not api_dir.is_dir():
@@ -192,19 +214,16 @@ async def serve_pages(path: str, request: Request):
         return HTMLResponse(_placeholder_home(), status_code=200)
 
     # Direct file match
-    file_path = OUTPUT_DIR / path
-    if file_path.is_file():
-        return FileResponse(file_path)
+    if (resolved := _safe_under_output(OUTPUT_DIR / path)) is not None:
+        return FileResponse(resolved)
 
     # Slug → output/{slug}.html
-    slug_html = OUTPUT_DIR / f"{path}.html"
-    if slug_html.is_file():
-        return FileResponse(slug_html)
+    if (resolved := _safe_under_output(OUTPUT_DIR / f"{path}.html")) is not None:
+        return FileResponse(resolved)
 
     # Directory index
-    index_html = OUTPUT_DIR / path / "index.html"
-    if index_html.is_file():
-        return FileResponse(index_html)
+    if (resolved := _safe_under_output(OUTPUT_DIR / path / "index.html")) is not None:
+        return FileResponse(resolved)
 
     # Tree-walk fallback for dynamic URLs:
     #   /report/{any-slug}        → output/report.html
@@ -215,8 +234,8 @@ async def serve_pages(path: str, request: Request):
     parts = path.strip("/").split("/")
     for i in range(len(parts) - 1, 0, -1):
         candidate = OUTPUT_DIR / ("/".join(parts[:i]) + ".html")
-        if candidate.is_file():
-            return FileResponse(candidate)
+        if (resolved := _safe_under_output(candidate)) is not None:
+            return FileResponse(resolved)
 
     return HTMLResponse(_placeholder_404(path), status_code=404)
 
@@ -239,6 +258,10 @@ def _placeholder_404(path: str) -> str:
 
 
 if __name__ == "__main__":
+    # Default to loopback so a stray `python3 server.py` on a laptop
+    # doesn't expose the app on the LAN. Containers set HOST=0.0.0.0 in
+    # the Dockerfile so the compose port-forward keeps working.
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
     reload_flag = os.environ.get("DEBUG", "").lower() in ("1", "true", "yes")
-    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=reload_flag)
+    uvicorn.run("server:app", host=host, port=port, reload=reload_flag)

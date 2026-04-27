@@ -64,7 +64,8 @@ def test_slug_with_slashes_writes_nested_html(tmp_path, monkeypatch):
     (page_dir / "content.html").write_text("<h1>Foo</h1>")
 
     shell = "<html><body>{{ content }}</body></html>"
-    out, _ = mod.compile_page(page_dir, shell)
+    out, _, err = mod.compile_page(page_dir, shell)
+    assert err is False
     assert out is not None
     assert out == tmp_path / "output" / "admin" / "foo.html"
     assert out.is_file()
@@ -84,7 +85,8 @@ def test_body_class_token_interpolates_into_shell(tmp_path, monkeypatch):
     (page_dir / "content.html").write_text("body")
 
     shell = '<html><body class="{{ body_class }}">{{ content }}</body></html>'
-    out, _ = mod.compile_page(page_dir, shell)
+    out, _, err = mod.compile_page(page_dir, shell)
+    assert err is False
     html = out.read_text()
     assert 'class="is-special"' in html
 
@@ -106,14 +108,55 @@ def test_manifest_auto_stub_emits_pages_for_unhandled_items(tmp_path, monkeypatc
 
     shell = "<html><body class=\"{{ body_class }}\">{{ content }}</body></html>"
     handled: set[str] = set()  # nothing hand-written
-    n = mod.emit_manifest_stubs(shell, handled)
+    n, errors = mod.emit_manifest_stubs(shell, handled)
 
+    assert errors == 0
     assert n == 2
     assert (tmp_path / "output" / "thing-alpha.html").is_file()
     assert (tmp_path / "output" / "thing-beta.html").is_file()
     text = (tmp_path / "output" / "thing-alpha.html").read_text()
     assert "Alpha" in text
     assert "is-stub" in text
+
+
+def test_unsafe_slug_is_rejected(tmp_path, monkeypatch):
+    """A config.json with a traversal-y slug must fail (not silently write
+    outside output/)."""
+    mod = _fresh_compile_module()
+    monkeypatch.setattr(mod, "OUTPUT_DIR", tmp_path / "output")
+
+    page_dir = tmp_path / "p"
+    page_dir.mkdir()
+    (page_dir / "config.json").write_text(json.dumps({
+        "title": "Bad",
+        "slug": "../escape",
+    }))
+    (page_dir / "content.html").write_text("body")
+
+    out, _, err = mod.compile_page(page_dir, "<html>{{ content }}</html>")
+    assert out is None
+    assert err is True
+
+
+def test_manifest_stub_with_braces_in_title(tmp_path, monkeypatch):
+    """Titles containing `{` used to crash the stub builder via str.format.
+    The substitution-based filler keeps them as literal text."""
+    mod = _fresh_compile_module()
+    monkeypatch.setattr(mod, "OUTPUT_DIR", tmp_path / "output")
+
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps({
+        "items": [{"slug": "x", "title": "Pay {0} now", "description": "Use {amount}"}],
+    }))
+    monkeypatch.setenv("SEED_MANIFEST_PATH", str(manifest_path))
+    monkeypatch.setenv("SEED_MANIFEST_PREFIX", "p")
+
+    n, errors = mod.emit_manifest_stubs("<html>{{ content }}</html>", set())
+    assert errors == 0
+    assert n == 1
+    body = (tmp_path / "output" / "p-x.html").read_text()
+    assert "Pay {0} now" in body
+    assert "Use {amount}" in body
 
 
 def test_manifest_auto_stub_skips_handled_slugs(tmp_path, monkeypatch):
@@ -126,5 +169,6 @@ def test_manifest_auto_stub_skips_handled_slugs(tmp_path, monkeypatch):
     monkeypatch.setenv("SEED_MANIFEST_PREFIX", "p")
 
     # If the page slug was already handled by a hand-written page, skip it.
-    n = mod.emit_manifest_stubs("<html>{{ content }}</html>", {"p-x"})
+    n, errors = mod.emit_manifest_stubs("<html>{{ content }}</html>", {"p-x"})
+    assert errors == 0
     assert n == 0

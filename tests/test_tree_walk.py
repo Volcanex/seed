@@ -66,3 +66,13 @@ def test_tree_walk_serves_prefix_html_for_dynamic_subpaths(tmp_path, client):
 def test_tree_walk_404s_when_no_prefix_matches(client):
     r = client.get("/no-such-thing/sub/path")
     assert r.status_code == 404
+
+
+def test_path_traversal_attempt_404s(client):
+    """`..` segments must not escape output/ — the resolve-and-confine
+    check in server.py rejects them."""
+    # TestClient normalises some forms, so try a few flavours that can
+    # reach the catch-all. Each must 404, never 200 with file contents.
+    for victim_path in ("../server.py", "..%2fserver.py", "../../etc/passwd"):
+        r = client.get(f"/{victim_path}")
+        assert r.status_code == 404, f"{victim_path!r} did not 404 (got {r.status_code})"

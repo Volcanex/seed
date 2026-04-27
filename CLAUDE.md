@@ -99,6 +99,13 @@ Pairs naturally with the **slug-with-slashes** support in `compile.py`:
 a page with slug `admin/audit` writes its HTML into a nested directory
 under the output tree and tree-walk-serves every `/admin/audit/<id>`.
 
+Every lookup runs through `_safe_under_output()`, which resolves the
+candidate path and confirms it stays under `OUTPUT_DIR` — `..`
+segments in URLs never escape the output dir. The matching defence on
+the build side is slug sanitisation in `compile.py`: a `slug` that
+contains `..`, leading `/`, or `\` fails the build with a non-zero
+exit code.
+
 ### Hamburger drawer + admin-aware nav (`core/static/css/nav.css` + `core/static/js/nav.js`)
 
 Burger button → slide-in drawer with sectioned links. On load, the JS
@@ -181,9 +188,9 @@ supports the pattern — see `discover_apis()` in `server.py`.
 ## Key Commands
 
 ```bash
-python3 compile.py                    # Rebuild pages
+python3 compile.py                    # Rebuild pages (exits non-zero on any error)
 python3 scripts/compile_docs.py       # Rebuild the docs index below
-python3 server.py                     # Run locally on :8080
+python3 server.py                     # Run locally on 127.0.0.1:8080 (set HOST=0.0.0.0 to bind all interfaces)
 docker compose up -d                  # Docker — behind a reverse proxy (binds 127.0.0.1:${HOST_PORT})
 docker compose --profile standalone up -d   # Docker — standalone with Caddy/TLS on 80/443
 pytest                                # Run tests
@@ -200,7 +207,7 @@ pytest                                # Run tests
 | `pages/CLAUDE.md` | Pages |
 | `tests/CLAUDE.md` | Tests |
 
-_Auto-compiled 2026-04-26 13:03 UTC — 5 doc(s) found._
+_Auto-compiled 2026-04-27 22:24 UTC — 5 doc(s) found._
 <!-- DOCS:END -->
 
 ## Extending the Seed

@@ -22,6 +22,7 @@ Configure via env vars (also read by `server.py`):
 
 from __future__ import annotations
 
+import hmac
 import os
 import subprocess
 import sys
@@ -67,8 +68,9 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 def login(req: LoginRequest, response: Response):
-    if req.password != _admin_password():
-        # Constant-ish timing — not a real defence, just polite
+    # Constant-time comparison so a remote attacker can't lift the
+    # password byte-by-byte off response timing. Trivial cost, real win.
+    if not hmac.compare_digest(req.password, _admin_password()):
         raise HTTPException(401, "wrong password")
     response.set_cookie(
         ADMIN_COOKIE,
