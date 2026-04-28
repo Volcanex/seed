@@ -1,5 +1,12 @@
 # seed
 
+**Seed is a template, not a project.** Clone or fork it to start a new
+site. Once you do, rename the project (root `README.md`, root
+`CLAUDE.md`, anywhere "seed" appears in headings or prose) to whatever
+you're actually building. Don't try to run a long-lived deployment
+"as seed" — that just creates a project called "seed" that confuses
+every future agent that touches it.
+
 A static-first web framework. HTML fragments get compiled into a shared
 shell. APIs are auto-discovered FastAPI routers. Claude maintains its
 own documentation via an auto-indexed `CLAUDE.md` tree.
@@ -8,16 +15,26 @@ Good for: marketing sites, dashboards, small SaaS, internal tools,
 client work where you want a proven shape without a heavyweight
 framework.
 
-## Quickstart
+## Starting a new project from seed
 
 ```bash
 git clone https://github.com/Volcanex/seed.git my-site
 cd my-site
+rm -rf .git && git init      # detach from upstream; new history
+# Rename the project: edit README.md (title + prose), CLAUDE.md
+# (heading), pages/home/config.json (title), and the docker compose
+# service name if you want.
 pip install -r requirements.txt
 
 python3 compile.py          # Build pages into output/
 python3 server.py           # Serve on http://127.0.0.1:8080
 ```
+
+(If you just want to *try* seed without renaming, the commands above
+work — but rename it before adding real content. The framework leans
+on `CLAUDE.md` files for orientation, and "this project is called
+seed" is a misleading first thing for an agent to read in a project
+that isn't actually seed.)
 
 Open `http://127.0.0.1:8080/` — the home page is served from
 `pages/home/`. Visit `/api/_routes` to see every mounted endpoint.

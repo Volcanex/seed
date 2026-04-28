@@ -1,9 +1,20 @@
 # Seed — Static-First FastAPI Framework
 
+> **If you're reading this in a project that *isn't* seed itself**:
+> someone forgot to rename it after cloning. Update the title of this
+> file and the README to reflect what the project actually is. Seed is
+> a template — every long-lived project should rename it on day one.
+
 A minimal, opinionated starting point for web projects. Pages are HTML
 fragments compiled into a shared shell. APIs are auto-discovered FastAPI
 routers. Claude maintains its own documentation via `CLAUDE.md` files
 indexed below.
+
+**Using seed for a new project?** Clone, `rm -rf .git && git init` to
+detach from upstream history, then rename: this file's title, the
+README title, and `pages/home/config.json`'s `title` field. The
+framework expects `CLAUDE.md` files to orient agents — leaving the
+project name as "seed" misleads every future agent.
 
 **What this is:** the bones of a site or internal tool. Good for marketing
 sites, dashboards, small SaaS, and client work where you want a proven
