@@ -217,6 +217,13 @@ docker compose --profile standalone up -d   # Docker — standalone with Caddy/T
 pytest                                # Run tests
 ```
 
+## Adze remote (optional)
+
+If this Seed deployment is managed by Adze External, a `.adze-remote.json`
+at the repo root tells Adze the preview URL, the build command, and a
+short client brief. The file is read by Adze, not by Seed — nothing in
+this codebase needs to know it exists. Safe to delete; safe to ignore.
+
 ## Documentation Index
 
 <!-- DOCS:START -->
