@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-.map-wrap { position: relative; height: calc(100vh - 57px); }
-#map { height: 100%; width: 100%; }
+.map-wrap { position: relative; height: calc(100vh - 57px); display: flex; }
+#map { flex: 1; height: 100%; min-width: 0; }
 
 /* Filter bar */
 .map-filters {
@@ -36,36 +36,75 @@
   transition: background 0.12s, color 0.12s;
   white-space: nowrap;
 }
-.filter-btn.active { background: #2A2521; color: white; }
+.filter-btn.active                       { background: #2A2521; color: white; }
 .filter-btn[data-type="kgsale"].active   { background: #C4614A; }
 .filter-btn[data-type="carboot"].active  { background: #6D8F6F; }
 .filter-btn[data-type="fabric"].active   { background: #D4A849; color: #2A2521; }
 .filter-btn[data-best="1"].active        { background: #C4614A; }
-.filter-btn[data-score].active           { background: #2A2521; }
-.filter-btn[data-days].active            { background: #2A2521; }
 
-/* Popup */
-.loc-popup strong { display: block; font-size: 0.95rem; margin-bottom: 3px; }
+/* Right-side detail panel */
+.detail-panel {
+  width: 0;
+  overflow: hidden;
+  height: 100%;
+  background: #F8F3EC;
+  border-left: 2px solid #E0D5C8;
+  transition: width 0.25s cubic-bezier(0.2,0.6,0.2,1);
+  display: flex;
+  flex-direction: column;
+  z-index: 500;
+  flex-shrink: 0;
+}
+.detail-panel.open { width: 320px; }
+@media (max-width: 600px) {
+  .detail-panel.open {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 88vw;
+    z-index: 1500;
+    border-left: 2px solid #E0D5C8;
+  }
+}
+.detail-inner {
+  padding: 20px 18px;
+  overflow-y: auto;
+  flex: 1;
+}
+.detail-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  background: white;
+  border: 1px solid #E0D5C8;
+  border-radius: 50%;
+  width: 28px; height: 28px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: #7A6F67;
+}
+.detail-close:hover { color: #2A2521; }
+.detail-name { font-size: 1.15rem; font-weight: 800; margin: 0 24px 6px 0; line-height: 1.3; }
+.detail-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
 .loc-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 50px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: white;
-  margin-right: 4px;
+  display: inline-block; padding: 3px 10px;
+  border-radius: 50px; font-size: 0.72rem; font-weight: 700; color: white;
 }
 .loc-badge.fabric { color: #2A2521; }
 .best-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  border-radius: 50px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  background: #C4614A;
-  color: white;
+  display: inline-block; padding: 3px 10px;
+  border-radius: 50px; font-size: 0.72rem; font-weight: 700;
+  background: #C4614A; color: white;
 }
-.loc-stars { color: #D4A849; font-size: 0.8rem; margin: 3px 0; }
+.detail-stars { color: #D4A849; font-size: 1rem; margin-bottom: 10px; }
+.detail-field { margin-bottom: 10px; }
+.detail-field label {
+  display: block; font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: #7A6F67; margin-bottom: 2px;
+}
+.detail-field p { margin: 0; font-size: 0.88rem; line-height: 1.45; }
+.detail-field a { color: #C4614A; font-size: 0.88rem; }
+.detail-divider { border: none; border-top: 1px solid #E0D5C8; margin: 14px 0; }
 </style>
 
 <div class="map-wrap">
@@ -85,7 +124,15 @@
       <button class="filter-btn" data-days="30">This month</button>
     </div>
   </div>
+
   <div id="map"></div>
+
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-inner" id="detail-inner">
+      <button class="detail-close" id="detail-close" aria-label="Close">&times;</button>
+      <div id="detail-content"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -98,29 +145,64 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 20
+  subdomains: 'abcd', maxZoom: 20
 }).addTo(map);
 
 function makeIcon(loc) {
   const c = COLOURS[loc.type] || '#888';
-  const star = loc.best_find ? `<circle cx="14" cy="10" r="4" fill="white" opacity="0.9"/>` : `<circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>`;
   const body = loc.best_find
-    ? `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/><path d="M14 6l1.8 3.6 4 .58-2.9 2.83.68 3.99L14 15l-3.58 1.98.68-3.99L8.2 10.18l4-.58z" fill="white"/>`
-    : `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/><circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>`;
+    ? `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/>
+       <path d="M14 6l1.8 3.6 4 .58-2.9 2.83.68 3.99L14 15l-3.58 1.98.68-3.99L8.2 10.18l4-.58z" fill="white"/>`
+    : `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/>
+       <circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>`;
   return L.divIcon({
     html: `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">${body}</svg>`,
-    className: '',
-    iconSize: [28, 36],
-    iconAnchor: [14, 36],
-    popupAnchor: [0, -38]
+    className: '', iconSize: [28,36], iconAnchor: [14,36], popupAnchor: [0,-38]
   });
 }
 
-function stars(n) {
-  if (!n) return '';
-  return '★'.repeat(n) + '☆'.repeat(5 - n);
+function stars(n) { return n ? '★'.repeat(n) + '☆'.repeat(5-n) : ''; }
+
+function field(label, value, isLink) {
+  if (!value && value !== 0) return '';
+  const content = isLink
+    ? `<a href="${value}" target="_blank" rel="noopener">${value}</a>`
+    : `<p>${value}</p>`;
+  return `<div class="detail-field"><label>${label}</label>${content}</div>`;
 }
+
+function showDetail(loc) {
+  const panel  = document.getElementById('detail-panel');
+  const el     = document.getElementById('detail-content');
+  const colour = COLOURS[loc.type] || '#888';
+  const label  = LABELS[loc.type]  || loc.type;
+  const isFabric = loc.type === 'fabric';
+
+  el.innerHTML = `
+    <p class="detail-name">${loc.name}</p>
+    <div class="detail-badges">
+      <span class="loc-badge ${isFabric ? 'fabric' : ''}" style="background:${colour}">${label}</span>
+      ${loc.best_find ? '<span class="best-badge">Best find</span>' : ''}
+    </div>
+    ${loc.score ? `<div class="detail-stars">${stars(loc.score)}</div>` : ''}
+    ${field('Price', loc.price_info)}
+    ${field('Hours', loc.opening_hours)}
+    ${loc.notes ? '<hr class="detail-divider">' + field('Notes', loc.notes) : ''}
+    ${field('Address', loc.address)}
+    ${field('Area', loc.area)}
+    ${loc.website ? '<hr class="detail-divider">' + field('Website', loc.website, true) : ''}
+    ${loc.date_added || loc.last_verified ? '<hr class="detail-divider">' +
+      field('Added', loc.date_added) + field('Verified', loc.last_verified) : ''}
+  `;
+
+  panel.classList.add('open');
+  map.invalidateSize();
+}
+
+document.getElementById('detail-close').addEventListener('click', () => {
+  document.getElementById('detail-panel').classList.remove('open');
+  setTimeout(() => map.invalidateSize(), 260);
+});
 
 let markers = [];
 let activeType = '', activeBest = false, activeScore = '', activeDays = '';
@@ -139,32 +221,13 @@ async function loadLocations() {
 
   data.forEach(loc => {
     if (!loc.lat || !loc.lng) return;
-    const badgeBg = COLOURS[loc.type] || '#888';
-    const badgeClass = loc.type === 'fabric' ? 'loc-badge fabric' : 'loc-badge';
-    const label = LABELS[loc.type] || loc.type;
-
-    const lines = [
-      `<div class="loc-popup">`,
-      `<strong>${loc.name}</strong>`,
-      `<span class="${badgeClass}" style="background:${badgeBg}">${label}</span>`,
-      loc.best_find ? `<span class="best-badge">Best find</span>` : '',
-      loc.score ? `<div class="loc-stars">${stars(loc.score)}</div>` : '',
-      loc.price_info    ? `<div style="font-weight:600;margin:4px 0">${loc.price_info}</div>` : '',
-      loc.opening_hours ? `<div style="font-size:0.82rem">${loc.opening_hours}</div>` : '',
-      loc.notes         ? `<div style="font-size:0.8rem;color:#666;margin-top:4px">${loc.notes}</div>` : '',
-      loc.address       ? `<div style="font-size:0.76rem;color:#999;margin-top:4px">${loc.address}</div>` : '',
-      loc.website       ? `<div style="margin-top:5px"><a href="${loc.website}" target="_blank" rel="noopener" style="font-size:0.8rem">Website</a></div>` : '',
-      `</div>`,
-    ].filter(Boolean).join('');
-
     const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc) });
-    m.bindPopup(lines, { maxWidth: 220 });
+    m.on('click', () => showDetail(loc));
     m.addTo(map);
     markers.push(m);
   });
 }
 
-// Type filter row
 document.querySelectorAll('#type-row .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#type-row .filter-btn').forEach(b => b.classList.remove('active'));
@@ -174,7 +237,6 @@ document.querySelectorAll('#type-row .filter-btn').forEach(btn => {
   });
 });
 
-// Extra filters
 document.querySelectorAll('[data-best]').forEach(btn => {
   btn.addEventListener('click', () => {
     activeBest = !activeBest;

@@ -1,0 +1,96 @@
+<style>
+.reports-list { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-5); }
+
+.report-card {
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--r-blob);
+  padding: var(--sp-5);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.report-card:hover {
+  border-color: var(--c-terracotta);
+  box-shadow: 0 4px 16px rgba(196,97,74,0.1);
+}
+.report-card h2 { margin: 0 0 6px; font-size: 1.05rem; }
+.report-meta { font-size: 0.8rem; color: var(--c-muted); }
+
+.report-detail { display: none; }
+.report-detail.active { display: block; }
+.report-back {
+  background: none; border: none; cursor: pointer;
+  color: var(--c-muted); font-family: inherit; font-size: 0.88rem;
+  padding: 0; margin-bottom: var(--sp-5);
+  display: flex; align-items: center; gap: 6px;
+}
+.report-back:hover { color: var(--c-fg); }
+.report-body {
+  font-size: 0.92rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--sp-5);
+  margin-top: var(--sp-4);
+}
+.empty-state { color: var(--c-muted); margin-top: var(--sp-6); }
+</style>
+
+<div id="list-view">
+  <h1>Reports</h1>
+  <p class="lede">Research notes on London sourcing spots.</p>
+  <div class="reports-list" id="reports-list">
+    <p class="empty-state">Loading...</p>
+  </div>
+</div>
+
+<div id="detail-view" class="report-detail">
+  <button class="report-back" id="back-btn">
+    <i class="ph ph-arrow-left"></i> Back to reports
+  </button>
+  <h1 id="detail-title"></h1>
+  <p class="report-meta" id="detail-meta"></p>
+  <div class="report-body" id="detail-body"></div>
+</div>
+
+<script>
+let reports = [];
+
+async function load() {
+  reports = await fetch('/api/reports').then(r => r.json());
+  const list = document.getElementById('reports-list');
+  if (!reports.length) {
+    list.innerHTML = '<p class="empty-state">No reports yet.</p>';
+    return;
+  }
+  list.innerHTML = reports.map(r => `
+    <div class="report-card" data-id="${r.id}">
+      <h2>${r.title}</h2>
+      <p class="report-meta">${r.date_added || ''}${r.source ? ' &mdash; ' + r.source : ''}</p>
+    </div>
+  `).join('');
+  list.querySelectorAll('.report-card').forEach(el => {
+    el.addEventListener('click', () => showReport(+el.dataset.id));
+  });
+}
+
+function showReport(id) {
+  const r = reports.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('detail-title').textContent = r.title;
+  document.getElementById('detail-meta').textContent =
+    (r.date_added || '') + (r.source ? ' — ' + r.source : '');
+  document.getElementById('detail-body').textContent = r.body;
+  document.getElementById('list-view').style.display = 'none';
+  document.getElementById('detail-view').classList.add('active');
+}
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  document.getElementById('list-view').style.display = '';
+  document.getElementById('detail-view').classList.remove('active');
+});
+
+load();
+</script>

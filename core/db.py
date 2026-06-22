@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS locations (
     last_verified TEXT
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    source     TEXT,
+    date_added TEXT DEFAULT (date('now'))
+);
+
 CREATE TABLE IF NOT EXISTS brands (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT NOT NULL,
