@@ -67,7 +67,7 @@ TEMPLATES_DIR = PROJECT_ROOT / "core" / "templates"
 DEFAULTS = {
     "title": "Untitled",
     "description": "",
-    "site_name": "apparel",
+    "site_name": "Nina's apparel",
     "body_class": "",
 }
 
