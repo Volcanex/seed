@@ -2,12 +2,14 @@ import base64
 import json
 import os
 
+import httpx
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from core.db import get_conn
 
 router = APIRouter()
 
+_MODEL  = "anthropic/claude-haiku-4-5"
 _PROMPT = """Look at this clothing item carefully. Identify the brand from any visible logos, text on labels or tags, patterns, or distinctive branding.
 
 Reply with ONLY a JSON object — no other text:
@@ -34,35 +36,39 @@ async def identify(image: UploadFile = File(...)):
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image too large (max 10 MB)")
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=503, detail="Vision API not configured (ANTHROPIC_API_KEY missing)")
+        raise HTTPException(status_code=503, detail="Vision API not configured (OPENROUTER_API_KEY missing)")
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
+    b64 = base64.standard_b64encode(data).decode()
 
     try:
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=256,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": ct,
-                            "data": base64.standard_b64encode(data).decode(),
-                        },
-                    },
-                    {"type": "text", "text": _PROMPT},
-                ],
-            }],
-        )
-        vision = json.loads(msg.content[0].text)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "HTTP-Referer": "https://apparel.gabrielpenman.com",
+                },
+                json={
+                    "model": _MODEL,
+                    "max_tokens": 256,
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:{ct};base64,{b64}"}},
+                            {"type": "text", "text": _PROMPT},
+                        ],
+                    }],
+                },
+            )
+        resp.raise_for_status()
+        text = resp.json()["choices"][0]["message"]["content"]
+        vision = json.loads(text)
     except json.JSONDecodeError:
         vision = {"brand": None, "confidence": "low", "notes": "could not parse response"}
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"OpenRouter error {exc.response.status_code}: {exc.response.text[:200]}")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Vision error: {exc}")
 
