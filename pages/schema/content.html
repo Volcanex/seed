@@ -1,0 +1,200 @@
+<style>
+.schema-section { margin-bottom: var(--sp-8); }
+.schema-section h2 { font-size: 1.15rem; margin-bottom: var(--sp-4); }
+
+.field-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.field-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--c-fg);
+  color: white;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+.field-table th:first-child { border-radius: 8px 0 0 0; }
+.field-table th:last-child  { border-radius: 0 8px 0 0; }
+.field-table td { padding: 8px 12px; border-bottom: 1px solid var(--c-border); vertical-align: top; }
+.field-table tr:hover td { background: var(--c-surface); }
+.field-table code { background: var(--c-border); padding: 1px 6px; border-radius: 4px; font-size: 0.82rem; }
+.required { color: var(--c-terracotta); font-weight: 700; }
+
+.example-block {
+  background: var(--c-fg);
+  color: #F8F3EC;
+  border-radius: var(--r-blob);
+  padding: var(--sp-5);
+  font-family: var(--ff-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin-top: var(--sp-4);
+}
+.example-block .key   { color: #D4A849; }
+.example-block .str   { color: #6D8F6F; }
+.example-block .num   { color: #C4614A; }
+.example-block .null  { color: #7A6F67; }
+.example-block .bool  { color: #A3C4A8; }
+
+.data-section { margin-top: var(--sp-8); }
+.data-section h2 { font-size: 1.15rem; margin-bottom: var(--sp-4); }
+
+.data-table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
+.data-table th {
+  padding: 6px 10px;
+  background: var(--c-fg);
+  color: white;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+}
+.data-table td { padding: 6px 10px; border-bottom: 1px solid var(--c-border); }
+.data-table tr:hover td { background: var(--c-surface); }
+.badge-best { background: var(--c-terracotta); color: white; padding: 1px 8px; border-radius: 50px; font-size: 0.7rem; font-weight: 700; }
+.stars { color: var(--c-mustard); }
+.tier-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: white;
+}
+.tier-S { background: var(--c-terracotta); }
+.tier-A { background: var(--c-sage); }
+.tier-B { background: var(--c-mustard); color: #2A2521; }
+.tier-C { background: #C8C0B5; color: #2A2521; }
+.tier-F { background: #E5DED6; color: #7A6F67; }
+</style>
+
+<h1>Schema</h1>
+<p class="lede">Data format and API reference — for adding locations and brands.</p>
+
+<div class="schema-section">
+  <h2>POST /api/map &mdash; add a location</h2>
+  <table class="field-table">
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>name</code></td><td>string</td><td><span class="required">yes</span></td><td>Display name of the location</td></tr>
+      <tr><td><code>type</code></td><td>string</td><td><span class="required">yes</span></td><td><code>kgsale</code>, <code>carboot</code>, or <code>fabric</code></td></tr>
+      <tr><td><code>address</code></td><td>string</td><td>no</td><td>Street address or postcode</td></tr>
+      <tr><td><code>area</code></td><td>string</td><td>no</td><td>Human area name, e.g. <code>East London</code></td></tr>
+      <tr><td><code>lat</code></td><td>number</td><td>no</td><td>Latitude (needed to appear on map)</td></tr>
+      <tr><td><code>lng</code></td><td>number</td><td>no</td><td>Longitude (needed to appear on map)</td></tr>
+      <tr><td><code>price_info</code></td><td>string</td><td>no</td><td>e.g. <code>£10/kg men's · £15/kg women's</code></td></tr>
+      <tr><td><code>opening_hours</code></td><td>string</td><td>no</td><td>e.g. <code>Mon–Sat 10am–6pm</code></td></tr>
+      <tr><td><code>notes</code></td><td>string</td><td>no</td><td>Free-text notes about the spot</td></tr>
+      <tr><td><code>website</code></td><td>string</td><td>no</td><td>Full URL including https://</td></tr>
+      <tr><td><code>score</code></td><td>integer</td><td>no</td><td>1–5 rating of the location's quality</td></tr>
+      <tr><td><code>best_find</code></td><td>boolean</td><td>no</td><td><code>true</code> to tag as a best find spot</td></tr>
+      <tr><td><code>date_added</code></td><td>string</td><td>no</td><td>ISO date <code>YYYY-MM-DD</code>. Defaults to today.</td></tr>
+      <tr><td><code>source</code></td><td>string</td><td>no</td><td>Who added it: <code>manual</code>, <code>cron</code>, <code>nina</code>, etc.</td></tr>
+      <tr><td><code>last_verified</code></td><td>string</td><td>no</td><td>ISO date the info was last checked</td></tr>
+    </tbody>
+  </table>
+
+  <div class="example-block">
+<span class="key">"name"</span>: <span class="str">"Traid Brixton"</span>,<br>
+<span class="key">"type"</span>: <span class="str">"kgsale"</span>,<br>
+<span class="key">"address"</span>: <span class="str">"2 Acre Lane, SW2 5SG"</span>,<br>
+<span class="key">"area"</span>: <span class="str">"South London"</span>,<br>
+<span class="key">"lat"</span>: <span class="num">51.4627</span>,<br>
+<span class="key">"lng"</span>: <span class="num">-0.1142</span>,<br>
+<span class="key">"price_info"</span>: <span class="str">"£12/kg"</span>,<br>
+<span class="key">"opening_hours"</span>: <span class="str">"Mon–Sat 10am–6pm"</span>,<br>
+<span class="key">"notes"</span>: <span class="str">"Good footwear section"</span>,<br>
+<span class="key">"score"</span>: <span class="num">4</span>,<br>
+<span class="key">"best_find"</span>: <span class="bool">false</span>,<br>
+<span class="key">"source"</span>: <span class="str">"cron"</span>
+  </div>
+</div>
+
+<div class="schema-section">
+  <h2>GET /api/map &mdash; filter params</h2>
+  <table class="field-table">
+    <thead>
+      <tr><th>Param</th><th>Values</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>type</code></td><td><code>kgsale</code> · <code>carboot</code> · <code>fabric</code></td><td>Filter by location type</td></tr>
+      <tr><td><code>best_find</code></td><td><code>1</code></td><td>Only best-find tagged locations</td></tr>
+      <tr><td><code>min_score</code></td><td><code>3</code> · <code>4</code> · <code>5</code></td><td>Minimum score (inclusive)</td></tr>
+      <tr><td><code>days</code></td><td>integer</td><td>Only locations added in the last N days</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="data-section">
+  <h2>Current locations (<span id="loc-count">—</span>)</h2>
+  <div class="data-table-wrap">
+    <table class="data-table" id="loc-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Type</th><th>Area</th>
+          <th>Score</th><th>Best</th>
+          <th>Price</th><th>Hours</th>
+          <th>Notes</th><th>Added</th><th>Source</th>
+        </tr>
+      </thead>
+      <tbody id="loc-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="data-section">
+  <h2>Brands (<span id="brand-count">—</span>)</h2>
+  <div class="data-table-wrap">
+    <table class="data-table" id="brand-table">
+      <thead>
+        <tr><th>Name</th><th>Tier</th><th>Min £</th><th>Max £</th><th>Notes</th><th>Keywords</th></tr>
+      </thead>
+      <tbody id="brand-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function stars(n) {
+  if (!n) return '—';
+  return '★'.repeat(n) + '☆'.repeat(5-n);
+}
+
+async function loadData() {
+  const [locs, brands] = await Promise.all([
+    fetch('/api/schema/locations').then(r => r.json()),
+    fetch('/api/schema/brands').then(r => r.json()),
+  ]);
+
+  document.getElementById('loc-count').textContent = locs.length;
+  const lb = document.getElementById('loc-body');
+  lb.innerHTML = locs.map(l => `<tr>
+    <td>${l.name}</td>
+    <td>${l.type}</td>
+    <td>${l.area || '—'}</td>
+    <td class="stars">${stars(l.score)}</td>
+    <td>${l.best_find ? '<span class="badge-best">yes</span>' : '—'}</td>
+    <td>${l.price_info || '—'}</td>
+    <td>${l.opening_hours || '—'}</td>
+    <td>${l.notes || '—'}</td>
+    <td>${l.date_added || l.last_verified || '—'}</td>
+    <td>${l.source || '—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('brand-count').textContent = brands.length;
+  const bb = document.getElementById('brand-body');
+  bb.innerHTML = brands.map(b => `<tr>
+    <td>${b.name}</td>
+    <td><span class="tier-chip tier-${b.tier}">${b.tier}</span></td>
+    <td>£${b.min_value_gbp ?? '—'}</td>
+    <td>£${b.max_value_gbp ?? '—'}</td>
+    <td>${b.notes || '—'}</td>
+    <td style="color:#7A6F67;font-size:0.76rem">${b.keywords || '—'}</td>
+  </tr>`).join('');
+}
+
+loadData();
+</script>

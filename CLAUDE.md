@@ -79,5 +79,5 @@ docker compose logs -f              # tail container logs
 | `pages/CLAUDE.md` | Pages |
 | `tests/CLAUDE.md` | Tests |
 
-_Auto-compiled 2026-06-22 18:13 UTC — 5 doc(s) found._
+_Auto-compiled 2026-06-22 18:44 UTC — 5 doc(s) found._
 <!-- DOCS:END -->

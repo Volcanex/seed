@@ -75,9 +75,23 @@ def init_db() -> None:
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def _migrate(conn) -> None:
+    existing = {r[1] for r in conn.execute("PRAGMA table_info(locations)").fetchall()}
+    new_cols = [
+        ("score",      "INTEGER"),
+        ("best_find",  "INTEGER DEFAULT 0"),
+        ("date_added", "TEXT"),
+        ("source",     "TEXT"),
+    ]
+    for col, typedef in new_cols:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE locations ADD COLUMN {col} {typedef}")
 
 
 @contextmanager

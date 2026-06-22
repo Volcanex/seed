@@ -96,3 +96,7 @@ a:hover { text-decoration: underline; }
   min-height: 0;
 }
 .page-map .page-map-hide { display: none; }
+
+/* Lift nav drawer above Leaflet's z-index layers (controls sit at 1000) */
+.page-map .nav-drawer   { z-index: 2000; }
+.page-map .nav-backdrop { z-index: 1999; }

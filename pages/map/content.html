@@ -3,12 +3,19 @@
 .map-wrap { position: relative; height: calc(100vh - 57px); }
 #map { height: 100%; width: 100%; }
 
+/* Filter bar */
 .map-filters {
   position: absolute;
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.filter-row {
   display: flex;
   gap: 4px;
   background: white;
@@ -17,12 +24,12 @@
   box-shadow: 0 2px 12px rgba(0,0,0,0.18);
 }
 .filter-btn {
-  padding: 6px 16px;
+  padding: 5px 14px;
   border: none;
   border-radius: 50px;
   background: transparent;
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   font-family: inherit;
   color: #7A6F67;
@@ -30,29 +37,53 @@
   white-space: nowrap;
 }
 .filter-btn.active { background: #2A2521; color: white; }
-.filter-btn[data-type="kgsale"].active  { background: #C4614A; }
-.filter-btn[data-type="carboot"].active { background: #6D8F6F; }
-.filter-btn[data-type="fabric"].active  { background: #D4A849; color: #2A2521; }
+.filter-btn[data-type="kgsale"].active   { background: #C4614A; }
+.filter-btn[data-type="carboot"].active  { background: #6D8F6F; }
+.filter-btn[data-type="fabric"].active   { background: #D4A849; color: #2A2521; }
+.filter-btn[data-best="1"].active        { background: #C4614A; }
+.filter-btn[data-score].active           { background: #2A2521; }
+.filter-btn[data-days].active            { background: #2A2521; }
 
-.leaflet-popup-content strong { display: block; font-size: 1rem; margin-bottom: 4px; }
+/* Popup */
+.loc-popup strong { display: block; font-size: 0.95rem; margin-bottom: 3px; }
 .loc-badge {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 2px 9px;
   border-radius: 50px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 6px;
+  margin-right: 4px;
 }
 .loc-badge.fabric { color: #2A2521; }
+.best-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 50px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #C4614A;
+  color: white;
+}
+.loc-stars { color: #D4A849; font-size: 0.8rem; margin: 3px 0; }
 </style>
 
 <div class="map-wrap">
   <div class="map-filters">
-    <button class="filter-btn active" data-type="">All</button>
-    <button class="filter-btn" data-type="kgsale">KG Sale</button>
-    <button class="filter-btn" data-type="carboot">Car Boot</button>
-    <button class="filter-btn" data-type="fabric">Fabric</button>
+    <div class="filter-row" id="type-row">
+      <button class="filter-btn active" data-type="">All</button>
+      <button class="filter-btn" data-type="kgsale">KG Sale</button>
+      <button class="filter-btn" data-type="carboot">Car Boot</button>
+      <button class="filter-btn" data-type="fabric">Fabric</button>
+    </div>
+    <div class="filter-row" id="extra-row">
+      <button class="filter-btn" data-best="1">Best finds</button>
+      <button class="filter-btn active" data-score="">Any score</button>
+      <button class="filter-btn" data-score="3">3+</button>
+      <button class="filter-btn" data-score="4">4+</button>
+      <button class="filter-btn active" data-days="">All time</button>
+      <button class="filter-btn" data-days="30">This month</button>
+    </div>
   </div>
   <div id="map"></div>
 </div>
@@ -65,18 +96,20 @@ const LABELS  = { kgsale: 'KG Sale', carboot: 'Car Boot', fabric: 'Fabric' };
 const map = L.map('map', { zoomControl: false }).setView([51.505, -0.09], 12);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-  maxZoom: 19
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 20
 }).addTo(map);
 
-function makeIcon(type) {
-  const c = COLOURS[type] || '#888';
+function makeIcon(loc) {
+  const c = COLOURS[loc.type] || '#888';
+  const star = loc.best_find ? `<circle cx="14" cy="10" r="4" fill="white" opacity="0.9"/>` : `<circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>`;
+  const body = loc.best_find
+    ? `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/><path d="M14 6l1.8 3.6 4 .58-2.9 2.83.68 3.99L14 15l-3.58 1.98.68-3.99L8.2 10.18l4-.58z" fill="white"/>`
+    : `<path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/><circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>`;
   return L.divIcon({
-    html: `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
-      <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/>
-      <circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>
-    </svg>`,
+    html: `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">${body}</svg>`,
     className: '',
     iconSize: [28, 36],
     iconAnchor: [14, 36],
@@ -84,46 +117,89 @@ function makeIcon(type) {
   });
 }
 
-let markers = [];
+function stars(n) {
+  if (!n) return '';
+  return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
 
-async function loadLocations(type) {
-  const url = type ? `/api/map?type=${encodeURIComponent(type)}` : '/api/map';
-  const data = await fetch(url).then(r => r.json());
+let markers = [];
+let activeType = '', activeBest = false, activeScore = '', activeDays = '';
+
+async function loadLocations() {
+  const params = new URLSearchParams();
+  if (activeType)  params.set('type', activeType);
+  if (activeBest)  params.set('best_find', '1');
+  if (activeScore) params.set('min_score', activeScore);
+  if (activeDays)  params.set('days', activeDays);
+
+  const data = await fetch('/api/map?' + params).then(r => r.json());
 
   markers.forEach(m => m.remove());
   markers = [];
 
   data.forEach(loc => {
     if (!loc.lat || !loc.lng) return;
-
     const badgeBg = COLOURS[loc.type] || '#888';
     const badgeClass = loc.type === 'fabric' ? 'loc-badge fabric' : 'loc-badge';
     const label = LABELS[loc.type] || loc.type;
 
     const lines = [
+      `<div class="loc-popup">`,
       `<strong>${loc.name}</strong>`,
       `<span class="${badgeClass}" style="background:${badgeBg}">${label}</span>`,
+      loc.best_find ? `<span class="best-badge">Best find</span>` : '',
+      loc.score ? `<div class="loc-stars">${stars(loc.score)}</div>` : '',
       loc.price_info    ? `<div style="font-weight:600;margin:4px 0">${loc.price_info}</div>` : '',
-      loc.opening_hours ? `<div style="font-size:0.85rem">${loc.opening_hours}</div>` : '',
-      loc.notes         ? `<div style="font-size:0.82rem;color:#666;margin-top:4px">${loc.notes}</div>` : '',
-      loc.address       ? `<div style="font-size:0.78rem;color:#999;margin-top:4px">${loc.address}</div>` : '',
-      loc.website       ? `<div style="margin-top:6px"><a href="${loc.website}" target="_blank" rel="noopener">Website</a></div>` : '',
+      loc.opening_hours ? `<div style="font-size:0.82rem">${loc.opening_hours}</div>` : '',
+      loc.notes         ? `<div style="font-size:0.8rem;color:#666;margin-top:4px">${loc.notes}</div>` : '',
+      loc.address       ? `<div style="font-size:0.76rem;color:#999;margin-top:4px">${loc.address}</div>` : '',
+      loc.website       ? `<div style="margin-top:5px"><a href="${loc.website}" target="_blank" rel="noopener" style="font-size:0.8rem">Website</a></div>` : '',
+      `</div>`,
     ].filter(Boolean).join('');
 
-    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc.type) });
-    m.bindPopup(`<div style="min-width:180px">${lines}</div>`);
+    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc) });
+    m.bindPopup(lines, { maxWidth: 220 });
     m.addTo(map);
     markers.push(m);
   });
 }
 
-document.querySelectorAll('.filter-btn').forEach(btn => {
+// Type filter row
+document.querySelectorAll('#type-row .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#type-row .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    loadLocations(btn.dataset.type);
+    activeType = btn.dataset.type;
+    loadLocations();
   });
 });
 
-loadLocations('');
+// Extra filters
+document.querySelectorAll('[data-best]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeBest = !activeBest;
+    btn.classList.toggle('active', activeBest);
+    loadLocations();
+  });
+});
+
+document.querySelectorAll('[data-score]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeScore = btn.dataset.score;
+    loadLocations();
+  });
+});
+
+document.querySelectorAll('[data-days]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeDays = btn.dataset.days;
+    loadLocations();
+  });
+});
+
+loadLocations();
 </script>
