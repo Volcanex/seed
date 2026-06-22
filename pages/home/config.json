@@ -1,7 +1,5 @@
 {
   "title": "Home",
   "slug": "home",
-  "description": "Seed — a static-first FastAPI starting point.",
-  "nav": true,
-  "order": 10
+  "description": "London clothing sourcing — kg sale, car boots, brand identifier"
 }

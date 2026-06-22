@@ -1,0 +1,276 @@
+<style>
+.upload-zone {
+  position: relative;
+  border: 2px dashed var(--c-border);
+  border-radius: var(--r-blob);
+  padding: var(--sp-8) var(--sp-5);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--c-surface);
+  margin-bottom: var(--sp-4);
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--c-terracotta);
+  background: #FDF5F3;
+}
+.upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-icon { font-size: 2.8rem; color: var(--c-muted); margin-bottom: var(--sp-2); }
+.upload-zone p { margin: 0; color: var(--c-muted); font-size: 0.9rem; }
+#preview-img {
+  max-height: 260px;
+  max-width: 100%;
+  border-radius: var(--r-md);
+  object-fit: contain;
+}
+
+.btn-identify {
+  display: block;
+  width: 100%;
+  padding: var(--sp-4);
+  background: var(--c-terracotta);
+  color: white;
+  border: none;
+  border-radius: 14px 4px 14px 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s;
+}
+.btn-identify:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-identify:not(:disabled):hover { opacity: 0.88; }
+
+.result-card {
+  margin-top: var(--sp-5);
+  padding: var(--sp-5);
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--r-blob);
+}
+.result-header { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.result-brand  { font-size: 1.5rem; font-weight: 800; }
+
+.tier-badge {
+  display: inline-block;
+  padding: 3px 14px;
+  border-radius: 50px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.tier-S { background: var(--c-terracotta); color: white; }
+.tier-A { background: var(--c-sage);       color: white; }
+.tier-B { background: var(--c-mustard);    color: #2A2521; }
+.tier-C { background: #C8C0B5;             color: #2A2521; }
+.tier-F { background: #E5DED6;             color: #7A6F67; }
+.tier-unknown { background: #E5DED6;       color: #7A6F67; }
+
+.result-tier-label { margin: var(--sp-2) 0 0; color: var(--c-muted); font-size: 0.88rem; }
+.result-value { font-size: 1.1rem; font-weight: 600; margin: var(--sp-3) 0 0; }
+.result-notes { font-size: 0.85rem; color: var(--c-muted); margin: var(--sp-2) 0 0; }
+.result-confidence { font-size: 0.78rem; color: var(--c-muted); margin-top: var(--sp-1); }
+
+.calc-section {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--c-border);
+}
+.calc-section h3 { margin: 0 0 var(--sp-3); font-size: 0.95rem; }
+.calc-row { display: flex; gap: var(--sp-3); }
+.calc-row label { flex: 1; }
+.calc-row label span { display: block; font-size: 0.8rem; color: var(--c-muted); margin-bottom: 4px; }
+.calc-row input {
+  width: 100%;
+  padding: 10px var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: var(--c-bg);
+}
+.calc-output {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--c-bg);
+  border-radius: var(--r-sm);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.verdict {
+  display: inline-block;
+  margin-top: var(--sp-2);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.verdict.yes { color: var(--c-sage); }
+.verdict.no  { color: var(--c-terracotta); }
+</style>
+
+<h1>Identify</h1>
+<p class="lede">Photo a label, logo, or tag. Get the brand tier and estimated resale value.</p>
+
+<div class="upload-zone" id="upload-zone">
+  <input type="file" id="file-input" accept="image/*" capture="environment">
+  <div id="upload-prompt">
+    <div class="upload-icon"><i class="ph ph-camera"></i></div>
+    <p>Tap to take a photo, or drag and drop an image</p>
+  </div>
+  <img id="preview-img" style="display:none" alt="Preview">
+</div>
+
+<button class="btn-identify" id="btn-identify" disabled>Identify brand</button>
+
+<div class="result-card" id="result-card" style="display:none">
+  <div class="result-header">
+    <span class="result-brand" id="result-brand"></span>
+    <span class="tier-badge" id="tier-badge"></span>
+  </div>
+  <p class="result-tier-label" id="result-tier-label"></p>
+  <p class="result-value" id="result-value"></p>
+  <p class="result-notes" id="result-notes"></p>
+  <p class="result-confidence" id="result-confidence"></p>
+
+  <div class="calc-section" id="calc-section" style="display:none">
+    <h3>Worth buying?</h3>
+    <div class="calc-row">
+      <label>
+        <span>Item weight (g)</span>
+        <input type="number" id="calc-weight" placeholder="e.g. 400" min="1">
+      </label>
+      <label>
+        <span>Shop price per kg (£)</span>
+        <input type="number" id="calc-kgprice" placeholder="e.g. 15" min="0.01" step="0.5">
+      </label>
+    </div>
+    <div class="calc-output" id="calc-output" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const zone       = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+const previewImg = document.getElementById('preview-img');
+const uploadPrompt = document.getElementById('upload-prompt');
+const btnIdentify  = document.getElementById('btn-identify');
+const resultCard   = document.getElementById('result-card');
+
+let selectedFile = null;
+let currentMin = null, currentMax = null;
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) setFile(f);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0]);
+});
+
+function setFile(f) {
+  selectedFile = f;
+  previewImg.src = URL.createObjectURL(f);
+  previewImg.style.display = 'block';
+  uploadPrompt.style.display = 'none';
+  btnIdentify.disabled = false;
+  resultCard.style.display = 'none';
+}
+
+btnIdentify.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  btnIdentify.disabled = true;
+  btnIdentify.textContent = 'Identifying...';
+  resultCard.style.display = 'none';
+  currentMin = currentMax = null;
+
+  const form = new FormData();
+  form.append('image', selectedFile);
+
+  try {
+    const resp = await fetch('/api/value/identify', { method: 'POST', body: form });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+    const d = await resp.json();
+
+    document.getElementById('result-brand').textContent = d.brand || 'Unknown brand';
+
+    const badge = document.getElementById('tier-badge');
+    if (d.tier) {
+      badge.textContent = d.tier;
+      badge.className = `tier-badge tier-${d.tier}`;
+    } else {
+      badge.textContent = '?';
+      badge.className = 'tier-badge tier-unknown';
+    }
+
+    document.getElementById('result-tier-label').textContent = d.tier_label || '';
+
+    if (d.min_value_gbp != null && d.max_value_gbp != null) {
+      document.getElementById('result-value').textContent =
+        `Est. resale £${d.min_value_gbp}–£${d.max_value_gbp}`;
+      currentMin = d.min_value_gbp;
+      currentMax = d.max_value_gbp;
+      document.getElementById('calc-section').style.display = 'block';
+    } else {
+      document.getElementById('result-value').textContent = d.tier ? '' : 'Brand not in database yet';
+      document.getElementById('calc-section').style.display = 'none';
+    }
+
+    const notesEl = document.getElementById('result-notes');
+    const notes = d.brand_notes || (d.brand ? '' : d.notes || '');
+    notesEl.textContent = notes;
+    notesEl.style.display = notes ? '' : 'none';
+
+    document.getElementById('result-confidence').textContent =
+      d.confidence ? `Confidence: ${d.confidence}` : '';
+
+    resultCard.style.display = 'block';
+    updateCalc();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btnIdentify.disabled = false;
+    btnIdentify.textContent = 'Identify brand';
+  }
+});
+
+function updateCalc() {
+  if (currentMin == null) return;
+  const w  = parseFloat(document.getElementById('calc-weight').value);
+  const kp = parseFloat(document.getElementById('calc-kgprice').value);
+  const out = document.getElementById('calc-output');
+  if (!w || !kp) { out.style.display = 'none'; return; }
+
+  const buyCost = (w / 1000) * kp;
+  const marginLow  = currentMin - buyCost;
+  const marginHigh = currentMax - buyCost;
+  const maxBuy = currentMin * 0.4;
+  const worth  = buyCost <= maxBuy;
+
+  out.innerHTML = `
+    Buy cost: <strong>£${buyCost.toFixed(2)}</strong>&emsp;
+    Est. resale: <strong>£${currentMin}–£${currentMax}</strong>&emsp;
+    Margin: <strong>£${marginLow.toFixed(0)}–£${marginHigh.toFixed(0)}</strong>
+    <br><span class="verdict ${worth ? 'yes' : 'no'}">${worth ? 'Worth buying' : 'Margin too thin'}</span>
+  `;
+  out.style.display = 'block';
+}
+
+document.getElementById('calc-weight').addEventListener('input', updateCalc);
+document.getElementById('calc-kgprice').addEventListener('input', updateCalc);
+</script>

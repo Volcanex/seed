@@ -1,0 +1,129 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+.map-wrap { position: relative; height: calc(100vh - 57px); }
+#map { height: 100%; width: 100%; }
+
+.map-filters {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 4px;
+  background: white;
+  padding: 5px;
+  border-radius: 50px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+}
+.filter-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 50px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #7A6F67;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.filter-btn.active { background: #2A2521; color: white; }
+.filter-btn[data-type="kgsale"].active  { background: #C4614A; }
+.filter-btn[data-type="carboot"].active { background: #6D8F6F; }
+.filter-btn[data-type="fabric"].active  { background: #D4A849; color: #2A2521; }
+
+.leaflet-popup-content strong { display: block; font-size: 1rem; margin-bottom: 4px; }
+.loc-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 6px;
+}
+.loc-badge.fabric { color: #2A2521; }
+</style>
+
+<div class="map-wrap">
+  <div class="map-filters">
+    <button class="filter-btn active" data-type="">All</button>
+    <button class="filter-btn" data-type="kgsale">KG Sale</button>
+    <button class="filter-btn" data-type="carboot">Car Boot</button>
+    <button class="filter-btn" data-type="fabric">Fabric</button>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const COLOURS = { kgsale: '#C4614A', carboot: '#6D8F6F', fabric: '#D4A849' };
+const LABELS  = { kgsale: 'KG Sale', carboot: 'Car Boot', fabric: 'Fabric' };
+
+const map = L.map('map', { zoomControl: false }).setView([51.505, -0.09], 12);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+  maxZoom: 19
+}).addTo(map);
+
+function makeIcon(type) {
+  const c = COLOURS[type] || '#888';
+  return L.divIcon({
+    html: `<svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22s14-12.67 14-22C28 6.27 21.73 0 14 0z" fill="${c}"/>
+      <circle cx="14" cy="14" r="5" fill="white" opacity="0.9"/>
+    </svg>`,
+    className: '',
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -38]
+  });
+}
+
+let markers = [];
+
+async function loadLocations(type) {
+  const url = type ? `/api/map?type=${encodeURIComponent(type)}` : '/api/map';
+  const data = await fetch(url).then(r => r.json());
+
+  markers.forEach(m => m.remove());
+  markers = [];
+
+  data.forEach(loc => {
+    if (!loc.lat || !loc.lng) return;
+
+    const badgeBg = COLOURS[loc.type] || '#888';
+    const badgeClass = loc.type === 'fabric' ? 'loc-badge fabric' : 'loc-badge';
+    const label = LABELS[loc.type] || loc.type;
+
+    const lines = [
+      `<strong>${loc.name}</strong>`,
+      `<span class="${badgeClass}" style="background:${badgeBg}">${label}</span>`,
+      loc.price_info    ? `<div style="font-weight:600;margin:4px 0">${loc.price_info}</div>` : '',
+      loc.opening_hours ? `<div style="font-size:0.85rem">${loc.opening_hours}</div>` : '',
+      loc.notes         ? `<div style="font-size:0.82rem;color:#666;margin-top:4px">${loc.notes}</div>` : '',
+      loc.address       ? `<div style="font-size:0.78rem;color:#999;margin-top:4px">${loc.address}</div>` : '',
+      loc.website       ? `<div style="margin-top:6px"><a href="${loc.website}" target="_blank" rel="noopener">Website</a></div>` : '',
+    ].filter(Boolean).join('');
+
+    const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc.type) });
+    m.bindPopup(`<div style="min-width:180px">${lines}</div>`);
+    m.addTo(map);
+    markers.push(m);
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadLocations(btn.dataset.type);
+  });
+});
+
+loadLocations('');
+</script>

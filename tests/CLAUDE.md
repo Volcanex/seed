@@ -7,8 +7,7 @@ the framework:
   a valid sentinel block.
 - **Server boot** — FastAPI app imports and the built-in health endpoint
   responds.
-- **API auto-discovery** — `pages/hello/api.py` is found and mounted at
-  `/api/hello/*`.
+- **API auto-discovery** — `pages/map/api.py` and `pages/value/api.py` are found and mounted.
 - **Page serving** — compiled pages in `output/` are served at their
   slug path.
 - **Config validity** — every `pages/*/config.json` parses and has a

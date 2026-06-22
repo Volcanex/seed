@@ -20,12 +20,15 @@ services:
     environment:
       PORT: "8080"
       DEBUG: "${DEBUG:-0}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     # Bound to loopback so a host reverse proxy can reach it without
     # exposing the app to the public internet. Harmless when running
     # under the standalone profile too — Caddy talks to app:8080 over
     # the compose network regardless.
     ports:
-      - "127.0.0.1:${HOST_PORT:-8080}:8080"
+      - "127.0.0.1:${HOST_PORT:-8005}:8080"
+    volumes:
+      - ./data:/app/data
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/api/_health',timeout=2).status==200 else 1)\""]
       interval: 30s

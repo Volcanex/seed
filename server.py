@@ -160,12 +160,25 @@ async def health():
 async def routes():
     """List discovered routers and all mounted routes. Handy for sanity checks."""
     all_routes = []
-    for route in app.routes:
-        if hasattr(route, "methods") and hasattr(route, "path") and route.path.startswith("/api/"):
-            all_routes.append({
-                "path": route.path,
-                "methods": sorted(m for m in route.methods if m not in {"HEAD", "OPTIONS"}),
-            })
+
+    def _collect(route_list, prefix=""):
+        for route in route_list:
+            # FastAPI 0.115+ wraps included routers as _IncludedRouter objects
+            if type(route).__name__ == "_IncludedRouter":
+                ic = getattr(route, "include_context", None)
+                sub_prefix = ic.prefix if ic and hasattr(ic, "prefix") else prefix
+                orig = getattr(route, "original_router", None)
+                if orig:
+                    _collect(orig.routes, sub_prefix)
+            elif hasattr(route, "methods") and hasattr(route, "path"):
+                full = prefix + route.path if not route.path.startswith("/api/") else route.path
+                if full.startswith("/api/"):
+                    all_routes.append({
+                        "path": full,
+                        "methods": sorted(m for m in route.methods if m not in {"HEAD", "OPTIONS"}),
+                    })
+
+    _collect(app.routes)
     return {"discovered": _discovered, "routes": sorted(all_routes, key=lambda r: r["path"])}
 
 

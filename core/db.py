@@ -41,10 +41,30 @@ SCHEMA = """
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
 
-CREATE TABLE IF NOT EXISTS kv (
-  key         TEXT PRIMARY KEY,
-  value       TEXT NOT NULL,
-  updated_at  TEXT DEFAULT (datetime('now'))
+CREATE TABLE IF NOT EXISTS locations (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    type          TEXT NOT NULL,
+    address       TEXT,
+    area          TEXT,
+    lat           REAL,
+    lng           REAL,
+    price_info    TEXT,
+    opening_hours TEXT,
+    notes         TEXT,
+    website       TEXT,
+    active        INTEGER DEFAULT 1,
+    last_verified TEXT
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    tier          TEXT NOT NULL,
+    min_value_gbp REAL,
+    max_value_gbp REAL,
+    notes         TEXT,
+    keywords      TEXT
 );
 """
 

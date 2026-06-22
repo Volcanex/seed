@@ -1,39 +1,58 @@
 <style>
-  .hero { padding: var(--sp-6) 0; }
-  .hero h1 { font-size: 2.4rem; margin-bottom: var(--sp-3); }
-  .hero p { color: var(--c-muted); font-size: 1.1rem; max-width: 560px; }
-  .grid { display: grid; gap: var(--sp-4); grid-template-columns: 1fr 1fr; margin-top: var(--sp-6); }
-  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-  .card {
-    border: 1px solid var(--c-border);
-    border-radius: var(--r-md);
-    padding: var(--sp-5);
-    background: var(--c-surface);
-  }
-  .card h3 { margin: 0 0 var(--sp-2); font-size: 1rem; }
-  .card p { margin: 0; color: var(--c-muted); font-size: 0.95rem; }
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+@media (max-width: 500px) { .tool-grid { grid-template-columns: 1fr; } }
+
+.tool-card {
+  display: block;
+  padding: var(--sp-6) var(--sp-5);
+  background: var(--c-surface);
+  border: 2px solid var(--c-border);
+  border-radius: var(--r-blob);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.tool-card:hover {
+  border-color: var(--c-terracotta);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(196,97,74,0.12);
+  text-decoration: none;
+}
+.tool-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px 4px 12px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: var(--sp-4);
+  color: white;
+}
+.tool-icon.t { background: var(--c-terracotta); }
+.tool-icon.s { background: var(--c-sage); }
+
+.tool-card h2 { margin: 0 0 var(--sp-2); font-size: 1.1rem; }
+.tool-card p  { margin: 0; font-size: 0.9rem; color: var(--c-muted); line-height: 1.45; }
 </style>
 
-<section class="hero">
-  <h1>{{ title }}</h1>
-  <p>{{ description }}</p>
-</section>
+<h1>apparel</h1>
+<p class="lede">Find and value second-hand clothing in London.</p>
 
-<section class="grid">
-  <div class="card">
-    <h3>Pages</h3>
-    <p>Drop HTML fragments in <code>pages/{slug}/</code>. Run <code>python3 compile.py</code>.</p>
-  </div>
-  <div class="card">
-    <h3>APIs</h3>
-    <p>Any <code>api.py</code> with a <code>router</code> is auto-mounted. Try <a href="/api/hello/">/api/hello/</a>.</p>
-  </div>
-  <div class="card">
-    <h3>Docs</h3>
-    <p>Every directory gets a <code>CLAUDE.md</code>. An auto-index lives in the root.</p>
-  </div>
-  <div class="card">
-    <h3>Routes</h3>
-    <p>See every mounted route at <a href="/api/_routes">/api/_routes</a>.</p>
-  </div>
-</section>
+<div class="tool-grid">
+  <a href="/map" class="tool-card">
+    <div class="tool-icon t"><i class="ph ph-map-pin"></i></div>
+    <h2>London Map</h2>
+    <p>KG sale shops, car boots, and fabric wholesale — with prices and opening hours.</p>
+  </a>
+  <a href="/value" class="tool-card">
+    <div class="tool-icon s"><i class="ph ph-camera"></i></div>
+    <h2>Brand Identifier</h2>
+    <p>Photo a label or logo. Get the brand tier and estimated resale value.</p>
+  </a>
+</div>

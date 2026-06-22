@@ -1,7 +1,4 @@
-"""Smoke tests — verify the core framework wires up.
-
-Run: `pytest` from repo root.
-"""
+"""Smoke tests — verify the core framework wires up."""
 
 import json
 import subprocess
@@ -16,7 +13,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(scope="session", autouse=True)
 def compile_pages():
-    """Compile pages once for the whole test session."""
     result = subprocess.run(
         [sys.executable, "compile.py"],
         cwd=PROJECT_ROOT,
@@ -28,9 +24,8 @@ def compile_pages():
 
 @pytest.fixture(scope="session")
 def client():
-    """Import the app after compilation and return a TestClient."""
     sys.path.insert(0, str(PROJECT_ROOT))
-    from server import app  # noqa: E402
+    from server import app
     return TestClient(app)
 
 
@@ -40,25 +35,18 @@ def test_health(client):
     assert r.json() == {"status": "ok"}
 
 
-def test_routes_index_lists_hello(client):
+def test_routes_index_lists_app_routes(client):
     r = client.get("/api/_routes")
     assert r.status_code == 200
-    body = r.json()
-    paths = [route["path"] for route in body["routes"]]
-    assert "/api/hello/" in paths
-    assert "/api/hello/echo" in paths
+    paths = [route["path"] for route in r.json()["routes"]]
+    assert "/api/map" in paths
+    assert "/api/value/identify" in paths
 
 
-def test_hello_api(client):
-    r = client.get("/api/hello/")
+def test_map_api(client):
+    r = client.get("/api/map")
     assert r.status_code == 200
-    assert r.json()["ok"] is True
-
-
-def test_hello_echo(client):
-    r = client.get("/api/hello/echo", params={"msg": "seed"})
-    assert r.status_code == 200
-    assert r.json() == {"echo": "seed"}
+    assert isinstance(r.json(), list)
 
 
 def test_home_page_renders(client):
@@ -66,13 +54,19 @@ def test_home_page_renders(client):
     assert r.status_code == 200
     body = r.text
     assert "<title>Home" in body
-    assert "Pages" in body  # grid card content
+    assert "apparel" in body
 
 
-def test_hello_page_renders(client):
-    r = client.get("/hello")
+def test_map_page_renders(client):
+    r = client.get("/map")
     assert r.status_code == 200
-    assert "Hello" in r.text
+    assert "map" in r.text.lower()
+
+
+def test_value_page_renders(client):
+    r = client.get("/value")
+    assert r.status_code == 200
+    assert "Identify" in r.text
 
 
 def test_404_on_missing_page(client):
@@ -81,7 +75,6 @@ def test_404_on_missing_page(client):
 
 
 def test_compile_docs_runs_cleanly():
-    """The docs compiler must run without errors against a fresh repo."""
     result = subprocess.run(
         [sys.executable, "scripts/compile_docs.py"],
         cwd=PROJECT_ROOT,
@@ -90,14 +83,12 @@ def test_compile_docs_runs_cleanly():
     )
     assert result.returncode == 0, f"compile_docs.py failed:\n{result.stderr}"
 
-    # Root CLAUDE.md should have an index block
     root = (PROJECT_ROOT / "CLAUDE.md").read_text()
     assert "<!-- DOCS:START -->" in root
     assert "<!-- DOCS:END -->" in root
 
 
 def test_home_config_is_valid_json():
-    """Every pages/*/config.json must parse as JSON with a title."""
     for cfg in (PROJECT_ROOT / "pages").glob("*/config.json"):
         data = json.loads(cfg.read_text())
         assert "title" in data, f"{cfg} missing title"

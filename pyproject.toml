@@ -1,0 +1,7 @@
+[project]
+name = "apparel"
+version = "0.1.0"
+description = "London clothing sourcing tool — map + brand valuer"
+
+[tool.gcore]
+starter = "gseed-app@1.0.0"
