@@ -26,11 +26,23 @@
 
 html, body {
   margin: 0; padding: 0;
-  background: var(--c-bg);
+  background-color: var(--c-bg);
+  background-image: url('/assets/bg.jpg');
+  background-size: cover;
+  background-position: center top;
+  background-attachment: fixed;
   color: var(--c-fg);
   font-family: var(--ff-body);
   font-size: 16px;
   line-height: 1.6;
+}
+
+.site-header,
+.site-main,
+.site-footer,
+.nav-drawer {
+  background: rgba(248, 243, 236, 0.88);
+  backdrop-filter: blur(2px);
 }
 
 a { color: var(--c-accent); text-decoration: none; }
