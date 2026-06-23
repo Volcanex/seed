@@ -36,11 +36,12 @@
   transition: background 0.12s, color 0.12s;
   white-space: nowrap;
 }
-.filter-btn.active                       { background: #2A2521; color: white; }
-.filter-btn[data-type="kgsale"].active   { background: #C4614A; }
-.filter-btn[data-type="carboot"].active  { background: #6D8F6F; }
-.filter-btn[data-type="fabric"].active   { background: #D4A849; color: #2A2521; }
-.filter-btn[data-best="1"].active        { background: #C4614A; }
+.filter-btn.active                        { background: #2A2521; color: white; }
+.filter-btn[data-type="kgsale"].active    { background: #C4614A; }
+.filter-btn[data-type="carboot"].active   { background: #6D8F6F; }
+.filter-btn[data-type="fabric"].active    { background: #D4A849; color: #2A2521; }
+.filter-btn[data-type="charity"].active   { background: #7B5EA7; }
+.filter-btn[data-best="1"].active         { background: #C4614A; }
 
 /* Right-side detail panel */
 .detail-panel {
@@ -113,6 +114,7 @@
       <button class="filter-btn active" data-type="">All</button>
       <button class="filter-btn" data-type="kgsale">KG Sale</button>
       <button class="filter-btn" data-type="carboot">Car Boot</button>
+      <button class="filter-btn" data-type="charity">Charity</button>
       <button class="filter-btn" data-type="fabric">Fabric</button>
     </div>
     <div class="filter-row" id="extra-row">
@@ -137,8 +139,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const COLOURS = { kgsale: '#C4614A', carboot: '#6D8F6F', fabric: '#D4A849' };
-const LABELS  = { kgsale: 'KG Sale', carboot: 'Car Boot', fabric: 'Fabric' };
+const COLOURS = { kgsale: '#C4614A', carboot: '#6D8F6F', fabric: '#D4A849', charity: '#7B5EA7' };
+const LABELS  = { kgsale: 'KG Sale', carboot: 'Car Boot', fabric: 'Fabric', charity: 'Charity' };
 
 const map = L.map('map', { zoomControl: false }).setView([51.505, -0.09], 12);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
