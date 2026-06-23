@@ -92,10 +92,13 @@ def init_db() -> None:
 def _migrate(conn) -> None:
     existing = {r[1] for r in conn.execute("PRAGMA table_info(locations)").fetchall()}
     new_cols = [
-        ("score",      "INTEGER"),
-        ("best_find",  "INTEGER DEFAULT 0"),
-        ("date_added", "TEXT"),
-        ("source",     "TEXT"),
+        ("score",       "INTEGER"),
+        ("best_find",   "INTEGER DEFAULT 0"),
+        ("date_added",  "TEXT"),
+        ("source",      "TEXT"),
+        ("days_open",   "TEXT"),
+        ("event_start", "TEXT"),
+        ("event_end",   "TEXT"),
     ]
     for col, typedef in new_cols:
         if col not in existing:

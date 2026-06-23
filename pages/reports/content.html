@@ -1,3 +1,4 @@
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 .reports-list { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-5); }
 
@@ -18,23 +19,63 @@
 
 .report-detail { display: none; }
 .report-detail.active { display: block; }
+
+.report-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
 .report-back {
   background: none; border: none; cursor: pointer;
   color: var(--c-muted); font-family: inherit; font-size: 0.88rem;
-  padding: 0; margin-bottom: var(--sp-5);
+  padding: 0;
   display: flex; align-items: center; gap: 6px;
+  flex: 1;
 }
 .report-back:hover { color: var(--c-fg); }
+
+.report-action-btn {
+  background: none;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--r-sm);
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  transition: border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.report-action-btn:hover {
+  border-color: var(--c-terracotta);
+  color: var(--c-terracotta);
+}
+.report-action-btn.copied {
+  border-color: var(--c-sage);
+  color: var(--c-sage);
+}
+
 .report-body {
   font-size: 0.92rem;
   line-height: 1.75;
-  white-space: pre-wrap;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--r-md);
-  padding: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
   margin-top: var(--sp-4);
 }
+.report-body h2 { font-size: 1.15rem; margin-top: 1.5em; margin-bottom: 0.4em; border-bottom: 1px solid var(--c-border); padding-bottom: 4px; }
+.report-body h3 { font-size: 1rem; margin-top: 1.2em; margin-bottom: 0.3em; }
+.report-body ul { padding-left: 1.4em; margin: 0.5em 0; }
+.report-body li { margin-bottom: 0.25em; }
+.report-body strong { color: var(--c-fg); }
+.report-body p { margin: 0.6em 0; }
+.report-body hr { border: none; border-top: 1px solid var(--c-border); margin: 1.5em 0; }
+.report-body a { color: var(--c-accent); }
+.report-body code { background: var(--c-border); border-radius: 3px; padding: 1px 5px; font-size: 0.88em; }
+
 .empty-state { color: var(--c-muted); margin-top: var(--sp-6); }
 </style>
 
@@ -47,9 +88,17 @@
 </div>
 
 <div id="detail-view" class="report-detail">
-  <button class="report-back" id="back-btn">
-    <i class="ph ph-arrow-left"></i> Back to reports
-  </button>
+  <div class="report-actions">
+    <button class="report-back" id="back-btn">
+      <i class="ph ph-arrow-left"></i> Back to reports
+    </button>
+    <button class="report-action-btn" id="share-btn">
+      <i class="ph ph-share-network"></i> Share
+    </button>
+    <button class="report-action-btn" id="download-btn">
+      <i class="ph ph-download-simple"></i> Download
+    </button>
+  </div>
   <h1 id="detail-title"></h1>
   <p class="report-meta" id="detail-meta"></p>
   <div class="report-body" id="detail-body"></div>
@@ -57,6 +106,9 @@
 
 <script>
 let reports = [];
+let currentReport = null;
+
+marked.setOptions({ breaks: true });
 
 async function load() {
   reports = await fetch('/api/reports').then(r => r.json());
@@ -67,29 +119,75 @@ async function load() {
   }
   list.innerHTML = reports.map(r => `
     <div class="report-card" data-id="${r.id}">
-      <h2>${r.title}</h2>
-      <p class="report-meta">${r.date_added || ''}${r.source ? ' &mdash; ' + r.source : ''}</p>
+      <h2>${escHtml(r.title)}</h2>
+      <p class="report-meta">${r.date_added || ''}${r.source ? ' &mdash; ' + escHtml(r.source) : ''}</p>
     </div>
   `).join('');
   list.querySelectorAll('.report-card').forEach(el => {
     el.addEventListener('click', () => showReport(+el.dataset.id));
   });
+
+  const hash = window.location.hash;
+  if (hash.startsWith('#report-')) {
+    const id = parseInt(hash.slice(8));
+    if (!isNaN(id)) showReport(id);
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function showReport(id) {
   const r = reports.find(x => x.id === id);
   if (!r) return;
+  currentReport = r;
   document.getElementById('detail-title').textContent = r.title;
   document.getElementById('detail-meta').textContent =
     (r.date_added || '') + (r.source ? ' — ' + r.source : '');
-  document.getElementById('detail-body').textContent = r.body;
+  document.getElementById('detail-body').innerHTML = marked.parse(r.body || '');
   document.getElementById('list-view').style.display = 'none';
   document.getElementById('detail-view').classList.add('active');
+  history.replaceState(null, '', '#report-' + id);
 }
 
 document.getElementById('back-btn').addEventListener('click', () => {
+  currentReport = null;
   document.getElementById('list-view').style.display = '';
   document.getElementById('detail-view').classList.remove('active');
+  history.replaceState(null, '', window.location.pathname);
+});
+
+document.getElementById('download-btn').addEventListener('click', () => {
+  if (!currentReport) return;
+  const blob = new Blob([currentReport.body], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = currentReport.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.md';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('share-btn').addEventListener('click', async () => {
+  if (!currentReport) return;
+  const url = location.origin + '/reports#report-' + currentReport.id;
+  const btn = document.getElementById('share-btn');
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: currentReport.title, url });
+      return;
+    } catch (_) {}
+  }
+
+  await navigator.clipboard.writeText(url);
+  btn.innerHTML = '<i class="ph ph-check"></i> Copied';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.innerHTML = '<i class="ph ph-share-network"></i> Share';
+    btn.classList.remove('copied');
+  }, 2000);
 });
 
 load();

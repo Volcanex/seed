@@ -117,13 +117,18 @@
       <button class="filter-btn" data-type="charity">Charity</button>
       <button class="filter-btn" data-type="fabric">Fabric</button>
     </div>
-    <div class="filter-row" id="extra-row">
+    <div class="filter-row" id="when-row">
+      <button class="filter-btn" data-when="today">Today</button>
+      <button class="filter-btn" data-when="tomorrow">Tomorrow</button>
+      <button class="filter-btn" data-when="thisweek">This week</button>
+      <button class="filter-btn active" data-when="alltime">All time</button>
+      <button class="filter-btn" id="more-toggle" data-more="0"><i class="ph ph-sliders"></i></button>
+    </div>
+    <div class="filter-row" id="more-row" style="display:none">
       <button class="filter-btn" data-best="1">Best finds</button>
       <button class="filter-btn active" data-score="">Any score</button>
       <button class="filter-btn" data-score="3">3+</button>
       <button class="filter-btn" data-score="4">4+</button>
-      <button class="filter-btn active" data-days="">All time</button>
-      <button class="filter-btn" data-days="30">This month</button>
     </div>
   </div>
 
@@ -206,22 +211,45 @@ document.getElementById('detail-close').addEventListener('click', () => {
   setTimeout(() => map.invalidateSize(), 260);
 });
 
+let allLocations = [];
 let markers = [];
-let activeType = '', activeBest = false, activeScore = '', activeDays = '';
+let activeType = '', activeBest = false, activeScore = '', activeWhen = 'alltime';
 
-async function loadLocations() {
-  const params = new URLSearchParams();
-  if (activeType)  params.set('type', activeType);
-  if (activeBest)  params.set('best_find', '1');
-  if (activeScore) params.set('min_score', activeScore);
-  if (activeDays)  params.set('days', activeDays);
+const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 
-  const data = await fetch('/api/map?' + params).then(r => r.json());
+function dateStr(d) { return d.toISOString().slice(0,10); }
 
+function openOn(loc, d) {
+  const day = DAYS[d.getDay()];
+  const ds  = dateStr(d);
+  const inEvent = (!loc.event_start && !loc.event_end) ||
+    ((!loc.event_start || ds >= loc.event_start) && (!loc.event_end || ds <= loc.event_end));
+  if (!inEvent) return false;
+  if (!loc.days_open) return !!(loc.event_start || loc.event_end);
+  if (loc.days_open === 'daily') return true;
+  return loc.days_open.split(',').includes(day);
+}
+
+function matchesWhen(loc) {
+  const today = new Date();
+  if (activeWhen === 'today')    return openOn(loc, today);
+  if (activeWhen === 'tomorrow') { const t = new Date(today); t.setDate(t.getDate()+1); return openOn(loc, t); }
+  if (activeWhen === 'thisweek') {
+    for (let i = 0; i < 7; i++) { const d = new Date(today); d.setDate(d.getDate()+i); if (openOn(loc,d)) return true; }
+    return false;
+  }
+  return true;
+}
+
+function renderMarkers() {
   markers.forEach(m => m.remove());
   markers = [];
-
-  data.forEach(loc => {
+  allLocations.filter(loc => {
+    if (activeType  && loc.type  !== activeType)       return false;
+    if (activeBest  && !loc.best_find)                 return false;
+    if (activeScore && (loc.score || 0) < +activeScore) return false;
+    return matchesWhen(loc);
+  }).forEach(loc => {
     if (!loc.lat || !loc.lng) return;
     const m = L.marker([loc.lat, loc.lng], { icon: makeIcon(loc) });
     m.on('click', () => showDetail(loc));
@@ -230,12 +258,26 @@ async function loadLocations() {
   });
 }
 
+async function loadLocations() {
+  allLocations = await fetch('/api/map').then(r => r.json());
+  renderMarkers();
+}
+
 document.querySelectorAll('#type-row .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('#type-row .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activeType = btn.dataset.type;
-    loadLocations();
+    renderMarkers();
+  });
+});
+
+document.querySelectorAll('[data-when]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-when]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeWhen = btn.dataset.when;
+    renderMarkers();
   });
 });
 
@@ -243,7 +285,7 @@ document.querySelectorAll('[data-best]').forEach(btn => {
   btn.addEventListener('click', () => {
     activeBest = !activeBest;
     btn.classList.toggle('active', activeBest);
-    loadLocations();
+    renderMarkers();
   });
 });
 
@@ -252,17 +294,16 @@ document.querySelectorAll('[data-score]').forEach(btn => {
     document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activeScore = btn.dataset.score;
-    loadLocations();
+    renderMarkers();
   });
 });
 
-document.querySelectorAll('[data-days]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeDays = btn.dataset.days;
-    loadLocations();
-  });
+document.getElementById('more-toggle').addEventListener('click', () => {
+  const row = document.getElementById('more-row');
+  const btn = document.getElementById('more-toggle');
+  const open = row.style.display === 'none';
+  row.style.display = open ? '' : 'none';
+  btn.classList.toggle('active', open);
 });
 
 loadLocations();
