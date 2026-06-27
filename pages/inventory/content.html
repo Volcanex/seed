@@ -1,0 +1,479 @@
+<style>
+/* ── Stats bar ───────────────────────────────── */
+.stats-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+.stat {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r-md); padding: var(--sp-4) var(--sp-3);
+  text-align: center;
+}
+.stat-val { display: block; font-size: 1.6rem; font-weight: 800; }
+.stat-lbl { font-size: 0.78rem; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.stat.profit .stat-val { color: var(--c-sage); }
+
+/* ── Filters ─────────────────────────────────── */
+.filter-row { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-4); flex-wrap: wrap; align-items: center; }
+.hunt-tab {
+  padding: 6px 14px; border: 2px solid var(--c-border);
+  border-radius: 20px; background: var(--c-surface);
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.hunt-tab.active { border-color: var(--c-terracotta); background: #FDF5F3; color: var(--c-terracotta); }
+.status-filter { margin-left: auto; }
+.status-filter select {
+  padding: 6px 12px; border: 2px solid var(--c-border);
+  border-radius: 20px; background: var(--c-surface);
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; -webkit-appearance: none;
+}
+
+/* ── Item list ───────────────────────────────── */
+.inv-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.inv-item {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.inv-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3); cursor: pointer; transition: background 0.1s;
+}
+.inv-row:hover { background: #FAFAF8; }
+.inv-thumb {
+  width: 56px; height: 56px; border-radius: var(--r-sm);
+  object-fit: cover; flex-shrink: 0;
+}
+.inv-thumb-ph {
+  width: 56px; height: 56px; border-radius: var(--r-sm);
+  background: var(--c-bg); display: flex; align-items: center;
+  justify-content: center; color: var(--c-muted); flex-shrink: 0; font-size: 1.4rem;
+}
+.inv-main { flex: 1; min-width: 0; }
+.inv-desc { font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-sub { font-size: 0.8rem; color: var(--c-muted); }
+.inv-prices { text-align: right; flex-shrink: 0; }
+.inv-guess { font-size: 0.8rem; color: var(--c-muted); }
+.inv-sale { font-weight: 700; font-size: 0.95rem; }
+
+.status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.s-new     { background: #EEE; color: #666; }
+.s-listed  { background: #EBF3FF; color: #1a5fb4; }
+.s-sold    { background: #EBF7F0; color: #2d6a4f; }
+.s-donated { background: #FFF3E0; color: #8d4e00; }
+.s-unsold  { background: #FDECEA; color: #a00; }
+
+/* ── Edit panel ──────────────────────────────── */
+.edit-panel {
+  padding: var(--sp-4) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  display: none;
+}
+.inv-item.expanded .edit-panel { display: block; }
+.inv-item.expanded .inv-row { background: #FAFAF8; }
+
+.edit-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.edit-field label { display: block; font-size: 0.8rem; color: var(--c-muted); margin-bottom: 4px; }
+.edit-field input, .edit-field select {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--c-border); border-radius: var(--r-sm);
+  font-size: 0.9rem; font-family: inherit; background: var(--c-bg);
+}
+.edit-field input:focus, .edit-field select:focus {
+  outline: none; border-color: var(--c-terracotta);
+}
+.edit-full { grid-column: 1 / -1; }
+
+.status-btns { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+.status-btn {
+  padding: 6px 14px; border: 2px solid var(--c-border);
+  border-radius: 20px; font-family: inherit; font-size: 0.82rem;
+  font-weight: 700; cursor: pointer; background: var(--c-surface);
+}
+.status-btn.active-new     { border-color: #666; background: #EEE; }
+.status-btn.active-listed  { border-color: #1a5fb4; background: #EBF3FF; color: #1a5fb4; }
+.status-btn.active-sold    { border-color: #2d6a4f; background: #EBF7F0; color: #2d6a4f; }
+.status-btn.active-donated { border-color: #8d4e00; background: #FFF3E0; color: #8d4e00; }
+.status-btn.active-unsold  { border-color: #a00; background: #FDECEA; color: #a00; }
+
+.edit-actions { display: flex; gap: var(--sp-2); }
+.btn-save-item {
+  flex: 1; padding: 10px; background: var(--c-terracotta); color: white;
+  border: none; border-radius: var(--r-sm); font-family: inherit; font-size: 0.9rem;
+  font-weight: 700; cursor: pointer;
+}
+.btn-save-item:hover { opacity: 0.85; }
+.btn-cancel-item {
+  padding: 10px 16px; background: none; border: 1px solid var(--c-border);
+  border-radius: var(--r-sm); font-family: inherit; font-size: 0.9rem; cursor: pointer;
+}
+
+/* Error banner */
+.err-banner {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  background: #FDECEA; border: 1px solid #C0392B44;
+  border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4); font-size: 0.9rem; color: #7a0000;
+}
+.err-banner i { flex-shrink: 0; font-size: 1rem; margin-top: 2px; }
+.err-banner span { flex: 1; }
+.err-close { background: none; border: none; cursor: pointer; color: #7a0000; font-size: 1rem; padding: 0; flex-shrink: 0; }
+
+/* ── Hunt summary table ──────────────────────── */
+.hunt-summary { margin-top: var(--sp-6); }
+.hunt-summary h2 { font-size: 1.1rem; margin-bottom: var(--sp-3); }
+.hunt-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.hunt-table th { text-align: left; padding: var(--sp-2) var(--sp-3); color: var(--c-muted); font-weight: 600; border-bottom: 2px solid var(--c-border); }
+.hunt-table td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--c-border); }
+.hunt-table tr:hover td { background: #FAFAF8; }
+.profit-pos { color: var(--c-sage); font-weight: 700; }
+.profit-neg { color: #C0392B; font-weight: 700; }
+
+/* ── Actions row ─────────────────────────────── */
+.top-actions { display: flex; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4); }
+.btn-export {
+  padding: 8px 16px; border: 2px solid var(--c-border);
+  border-radius: var(--r-sm); background: var(--c-surface);
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; text-decoration: none; color: var(--c-fg);
+}
+.btn-export:hover { border-color: var(--c-terracotta); text-decoration: none; }
+
+.empty-inv { text-align: center; padding: var(--sp-8); color: var(--c-muted); }
+.empty-inv i { font-size: 3rem; display: block; margin-bottom: var(--sp-3); }
+
+@media (max-width: 500px) {
+  .stats-bar { grid-template-columns: 1fr 1fr; }
+  .top-actions { flex-wrap: wrap; }
+  .top-actions .filter-row { order: 2; flex: 100%; margin-bottom: 0; }
+  .status-filter { order: 1; }
+  .btn-export { order: 3; }
+  .edit-grid { grid-template-columns: 1fr; }
+  .status-btns { gap: var(--sp-1); }
+  .status-btn { padding: 5px 10px; font-size: 0.78rem; }
+  .hunt-table { font-size: 0.78rem; }
+  .hunt-table th, .hunt-table td { padding: var(--sp-1) var(--sp-2); }
+  .inv-prices { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+}
+</style>
+
+<div id="err" class="err-banner" style="display:none">
+  <i class="ph ph-warning"></i>
+  <span id="err-msg"></span>
+  <button class="err-close" onclick="document.getElementById('err').style.display='none'"><i class="ph ph-x"></i></button>
+</div>
+
+<h1>Inventory</h1>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat">
+    <span class="stat-val" id="st-total">—</span>
+    <span class="stat-lbl">Total</span>
+  </div>
+  <div class="stat">
+    <span class="stat-val" id="st-listed">—</span>
+    <span class="stat-lbl">Listed</span>
+  </div>
+  <div class="stat">
+    <span class="stat-val" id="st-sold">—</span>
+    <span class="stat-lbl">Sold</span>
+  </div>
+  <div class="stat profit">
+    <span class="stat-val" id="st-profit">—</span>
+    <span class="stat-lbl">Profit</span>
+  </div>
+</div>
+
+<div class="top-actions">
+  <div class="filter-row" id="hunt-tabs" style="margin-bottom:0;flex:1"></div>
+  <div class="status-filter">
+    <select id="status-filter">
+      <option value="">All statuses</option>
+      <option value="new">New</option>
+      <option value="listed">Listed</option>
+      <option value="sold">Sold</option>
+      <option value="donated">Donated</option>
+      <option value="unsold">Unsold</option>
+    </select>
+  </div>
+  <a href="/api/inventory/export.csv" class="btn-export"><i class="ph ph-download-simple"></i> CSV</a>
+</div>
+
+<div class="inv-list" id="inv-list">
+  <div class="empty-inv" id="inv-empty" style="display:none">
+    <i class="ph ph-clipboard-text"></i>
+    <p>No items yet — complete a hunt to see items here</p>
+  </div>
+</div>
+
+<div class="hunt-summary">
+  <h2>Hunts</h2>
+  <table class="hunt-table" id="hunt-table">
+    <thead>
+      <tr>
+        <th>Hunt</th>
+        <th>Date</th>
+        <th>Cost</th>
+        <th>Items</th>
+        <th>Sold</th>
+        <th>Revenue</th>
+        <th>Profit</th>
+      </tr>
+    </thead>
+    <tbody id="hunt-tbody"></tbody>
+  </table>
+</div>
+
+<script>
+let allItems = [];
+let allHunts = [];
+let activeHunt = null;
+let activeStatus = '';
+let expandedId = null;
+let editState = {};
+
+const $ = id => document.getElementById(id);
+
+function showErr(msg) {
+  const el = $('err');
+  $('err-msg').textContent = msg;
+  el.style.display = 'flex';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+async function init() {
+  await Promise.all([loadStats(), loadHunts(), loadItems()]);
+}
+
+async function loadStats() {
+  try {
+    const s = await api('/api/inventory/stats');
+    $('st-total').textContent = s.total_items;
+    $('st-listed').textContent = s.listed_count;
+    $('st-sold').textContent = s.sold_count;
+    $('st-profit').textContent = '£' + (s.profit >= 0 ? '' : '') + s.profit.toFixed(0);
+    $('st-profit').style.color = s.profit >= 0 ? 'var(--c-sage)' : '#C0392B';
+  } catch (_) {}
+}
+
+async function loadHunts() {
+  try {
+    allHunts = await api('/api/inventory/hunts');
+    renderHuntTabs();
+    renderHuntTable();
+  } catch (_) {}
+}
+
+async function loadItems() {
+  try {
+    const params = new URLSearchParams();
+    if (activeHunt) params.set('hunt_id', activeHunt);
+    if (activeStatus) params.set('status', activeStatus);
+    allItems = await api('/api/inventory/items?' + params);
+    renderItems();
+  } catch (e) { console.error(e); }
+}
+
+function renderHuntTabs() {
+  const tabs = $('hunt-tabs');
+  tabs.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'hunt-tab' + (!activeHunt ? ' active' : '');
+  all.textContent = 'All hunts';
+  all.addEventListener('click', () => { activeHunt = null; filterChanged(); });
+  tabs.appendChild(all);
+  allHunts.forEach(h => {
+    const btn = document.createElement('button');
+    btn.className = 'hunt-tab' + (activeHunt === h.id ? ' active' : '');
+    btn.textContent = h.name;
+    btn.addEventListener('click', () => { activeHunt = h.id; filterChanged(); });
+    tabs.appendChild(btn);
+  });
+}
+
+function renderHuntTable() {
+  const tbody = $('hunt-tbody');
+  tbody.innerHTML = '';
+  allHunts.forEach(h => {
+    const profit = h.revenue_gbp - h.cost_gbp;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(h.name)}</td>
+      <td>${fmtDate(h.date)}</td>
+      <td>£${h.cost_gbp.toFixed(0)}</td>
+      <td>${h.item_count}</td>
+      <td>${h.sold_count}</td>
+      <td>£${h.revenue_gbp.toFixed(0)}</td>
+      <td class="${profit >= 0 ? 'profit-pos' : 'profit-neg'}">£${profit.toFixed(0)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderItems() {
+  const list = $('inv-list');
+  list.querySelectorAll('.inv-item').forEach(el => el.remove());
+  $('inv-empty').style.display = allItems.length === 0 ? '' : 'none';
+
+  allItems.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'inv-item' + (expandedId === item.id ? ' expanded' : '');
+    el.dataset.id = item.id;
+
+    const saleInfo = item.cost_gbp != null ? `cost £${item.cost_gbp.toFixed(2)}` : '';
+    const salePrice = item.sold_price_gbp != null
+      ? `<div class="inv-sale" style="color:var(--c-sage)">Sold £${item.sold_price_gbp}</div>`
+      : item.list_price_gbp != null
+      ? `<div class="inv-sale">List £${item.list_price_gbp}</div>`
+      : '';
+
+    el.innerHTML = `
+      <div class="inv-row">
+        ${item.thumb_url
+          ? `<img class="inv-thumb" src="${item.thumb_url}" alt="" loading="lazy">`
+          : `<div class="inv-thumb-ph"><i class="ph ph-handbag"></i></div>`}
+        <div class="inv-main">
+          <div class="inv-desc">${esc(item.description || item.category || 'Item')}</div>
+          <div class="inv-sub">${[item.category, item.brand_name, saleInfo].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="inv-prices">
+          ${item.nina_price_guess_gbp != null ? `<div class="inv-guess">guess £${item.nina_price_guess_gbp}</div>` : ''}
+          ${salePrice}
+          <span class="status-badge s-${item.status}">${item.status}</span>
+        </div>
+        <i class="ph ph-caret-${expandedId === item.id ? 'up' : 'down'}" style="color:var(--c-muted);flex-shrink:0"></i>
+      </div>
+      <div class="edit-panel">
+        <div class="status-btns">
+          ${['new','listed','sold','donated','unsold'].map(s =>
+            `<button class="status-btn ${item.status === s ? 'active-'+s : ''}" data-status="${s}">${s}</button>`
+          ).join('')}
+        </div>
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label>Description</label>
+            <input type="text" name="description" value="${esc(item.description || '')}">
+          </div>
+          <div class="edit-field">
+            <label>Brand</label>
+            <input type="text" name="brand_name" value="${esc(item.brand_name || '')}">
+          </div>
+          <div class="edit-field">
+            <label>List price (£)</label>
+            <input type="number" name="list_price_gbp" value="${item.list_price_gbp ?? ''}" step="0.50" min="0">
+          </div>
+          <div class="edit-field">
+            <label>Sold price (£)</label>
+            <input type="number" name="sold_price_gbp" value="${item.sold_price_gbp ?? ''}" step="0.50" min="0">
+          </div>
+          <div class="edit-field">
+            <label>Post date</label>
+            <input type="date" name="post_date" value="${item.post_date || ''}">
+          </div>
+          <div class="edit-field">
+            <label>Vinted URL</label>
+            <input type="url" name="vinted_url" value="${esc(item.vinted_url || '')}" placeholder="https://www.vinted.co.uk/items/...">
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-cancel-item">Cancel</button>
+          <button class="btn-save-item">Save</button>
+        </div>
+      </div>`;
+
+    // Toggle expand
+    el.querySelector('.inv-row').addEventListener('click', () => {
+      expandedId = expandedId === item.id ? null : item.id;
+      if (expandedId === item.id) {
+        editState[item.id] = { status: item.status };
+      }
+      renderItems();
+    });
+
+    // Status buttons
+    el.querySelectorAll('.status-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        el.querySelectorAll('.status-btn').forEach(b => {
+          b.className = 'status-btn';
+        });
+        btn.className = `status-btn active-${btn.dataset.status}`;
+        editState[item.id] = editState[item.id] || {};
+        editState[item.id].status = btn.dataset.status;
+      });
+    });
+
+    // Cancel
+    el.querySelector('.btn-cancel-item').addEventListener('click', e => {
+      e.stopPropagation();
+      expandedId = null;
+      renderItems();
+    });
+
+    // Save
+    el.querySelector('.btn-save-item').addEventListener('click', async e => {
+      e.stopPropagation();
+      const btn = e.target;
+      btn.disabled = true; btn.textContent = 'Saving...';
+      const update = {};
+      el.querySelectorAll('.edit-grid [name]').forEach(input => {
+        const val = input.value.trim();
+        if (input.type === 'number') {
+          if (val !== '') update[input.name] = parseFloat(val);
+        } else if (val !== '') {
+          update[input.name] = val;
+        }
+      });
+      const st = editState[item.id]?.status;
+      if (st) update.status = st;
+
+      try {
+        await api(`/api/inventory/items/${item.id}`, { method: 'PATCH', json: update });
+        expandedId = null;
+        await Promise.all([loadStats(), loadItems()]);
+      } catch (err) { showErr(err.message); }
+      finally { btn.disabled = false; btn.textContent = 'Save'; }
+    });
+
+    list.appendChild(el);
+  });
+}
+
+async function filterChanged() {
+  renderHuntTabs();
+  await loadItems();
+}
+
+$('status-filter').addEventListener('change', async () => {
+  activeStatus = $('status-filter').value;
+  await loadItems();
+});
+
+async function api(url, opts = {}) {
+  const init = { method: opts.method || 'GET' };
+  if (opts.json) { init.headers = {'Content-Type':'application/json'}; init.body = JSON.stringify(opts.json); }
+  const r = await fetch(url, init);
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  return new Date(s + 'T12:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>

@@ -16,10 +16,12 @@ London clothing sourcing tool for Gabriel's girlfriend — track KG sale shops, 
 
 | Var | Required | What |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Yes (for `/value`) | Claude Haiku vision calls |
+| `GOOGLE_VISION_API_KEY` | Yes (for `/value`) | Google Cloud Vision — Web Detection + Logo Detection for brand ID |
+| `EBAY_APP_ID` | No | eBay Finding API — enables live sold-price lookup (UK, Women's Clothing) |
+| `OPENROUTER_API_KEY` | No | OpenRouter — used with `EBAY_APP_ID` to translate eBay prices to Depop estimates |
 | `SEED_DB_PATH` | No | SQLite path (default: `data/seed.db`) |
 
-Add `ANTHROPIC_API_KEY` to the gcore passport and to `.env` here before deploying.
+Without `EBAY_APP_ID`, pricing falls back to static DB values from the `brands` table.
 
 ## DB tables
 
@@ -77,7 +79,9 @@ docker compose logs -f              # tail container logs
 | `core/api/CLAUDE.md` | core/api — shared API routers |
 | `core/templates/CLAUDE.md` | Templates — the shared shell |
 | `pages/CLAUDE.md` | Pages |
+| `pages/hunt/CLAUDE.md` | pages/hunt |
+| `pages/inventory/CLAUDE.md` | pages/inventory |
 | `tests/CLAUDE.md` | Tests |
 
-_Auto-compiled 2026-06-22 18:44 UTC — 5 doc(s) found._
+_Auto-compiled 2026-06-26 15:07 UTC — 7 doc(s) found._
 <!-- DOCS:END -->

@@ -74,6 +74,50 @@ CREATE TABLE IF NOT EXISTS brands (
     notes         TEXT,
     keywords      TEXT
 );
+
+CREATE TABLE IF NOT EXISTS hunts (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT NOT NULL,
+    date         TEXT NOT NULL,
+    location_id  INTEGER REFERENCES locations(id),
+    sale_type    TEXT NOT NULL DEFAULT 'kgsale',
+    cost_gbp     REAL NOT NULL DEFAULT 0,
+    kg_price_gbp REAL,
+    notes        TEXT,
+    status       TEXT NOT NULL DEFAULT 'active',
+    created_at   TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS items (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    hunt_id              INTEGER NOT NULL REFERENCES hunts(id) ON DELETE CASCADE,
+    description          TEXT,
+    category             TEXT,
+    brand_name           TEXT,
+    brand_id             INTEGER REFERENCES brands(id),
+    nina_price_guess_gbp REAL,
+    purchase_price_gbp   REAL,
+    list_price_gbp       REAL,
+    sold_price_gbp       REAL,
+    weight_g             REAL,
+    condition            TEXT DEFAULT 'good',
+    status               TEXT DEFAULT 'new',
+    listed_at            TEXT,
+    sold_at              TEXT,
+    vinted_url           TEXT,
+    post_date            TEXT,
+    notes                TEXT,
+    created_at           TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS item_photos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id    INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    filename   TEXT NOT NULL,
+    is_worn    INTEGER DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 

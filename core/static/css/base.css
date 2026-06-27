@@ -24,13 +24,25 @@
 
 * { box-sizing: border-box; }
 
-html, body {
-  margin: 0; padding: 0;
+html {
   background-color: var(--c-bg);
+}
+
+html::before {
+  content: '';
+  position: fixed;
+  inset: 0;
   background-image: url('/assets/bg.jpg');
-  background-size: cover;
-  background-position: center top;
-  background-attachment: fixed;
+  background-size: 480px auto;
+  background-repeat: repeat;
+  opacity: 0.12;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body {
+  margin: 0; padding: 0;
+  background: transparent;
   color: var(--c-fg);
   font-family: var(--ff-body);
   font-size: 16px;
@@ -112,3 +124,12 @@ a:hover { text-decoration: underline; }
 /* Lift nav drawer above Leaflet's z-index layers (controls sit at 1000) */
 .page-map .nav-drawer   { z-index: 2000; }
 .page-map .nav-backdrop { z-index: 1999; }
+
+/* ── Mobile base ─────────────────────────────── */
+@media (max-width: 500px) {
+  .site-header,
+  .site-main,
+  .site-footer { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+
+  .site-main h1 { font-size: 1.6rem; }
+}

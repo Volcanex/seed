@@ -50,15 +50,32 @@
 .btn-identify:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-identify:not(:disabled):hover { opacity: 0.88; }
 
+/* Result card */
 .result-card {
   margin-top: var(--sp-5);
-  padding: var(--sp-5);
-  background: var(--c-surface);
   border: 2px solid var(--c-border);
   border-radius: var(--r-blob);
+  overflow: hidden;
 }
-.result-header { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
-.result-brand  { font-size: 1.5rem; font-weight: 800; }
+
+/* Verdict banner — top of card, full width */
+.verdict-banner {
+  padding: var(--sp-4) var(--sp-5);
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+.verdict-banner.buy  { background: #2D6A4F; color: #fff; }
+.verdict-banner.maybe { background: var(--c-mustard); color: #2A2521; }
+.verdict-banner.skip  { background: #C0392B; color: #fff; }
+
+/* Body */
+.result-body {
+  padding: var(--sp-5);
+  background: var(--c-surface);
+}
+.result-header { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.result-brand  { font-size: 1.4rem; font-weight: 800; }
 
 .tier-badge {
   display: inline-block;
@@ -75,11 +92,11 @@
 .tier-F { background: #E5DED6;             color: #7A6F67; }
 .tier-unknown { background: #E5DED6;       color: #7A6F67; }
 
-.result-tier-label { margin: var(--sp-2) 0 0; color: var(--c-muted); font-size: 0.88rem; }
-.result-value { font-size: 1.1rem; font-weight: 600; margin: var(--sp-3) 0 0; }
+.result-meta { font-size: 0.85rem; color: var(--c-muted); margin-bottom: var(--sp-1); }
+.result-value { font-size: 1rem; font-weight: 600; margin: var(--sp-3) 0 0; }
 .result-notes { font-size: 0.85rem; color: var(--c-muted); margin: var(--sp-2) 0 0; }
-.result-confidence { font-size: 0.78rem; color: var(--c-muted); margin-top: var(--sp-1); }
 
+/* Calc */
 .calc-section {
   margin-top: var(--sp-5);
   padding-top: var(--sp-4);
@@ -101,23 +118,72 @@
 .calc-output {
   margin-top: var(--sp-4);
   padding: var(--sp-4);
-  background: var(--c-bg);
   border-radius: var(--r-sm);
   font-size: 0.9rem;
-  line-height: 1.7;
+  line-height: 1.8;
 }
-.verdict {
-  display: inline-block;
-  margin-top: var(--sp-2);
+.calc-output.calc-buy  { background: #EBF7F0; border: 1px solid #2D6A4F22; }
+.calc-output.calc-skip { background: #FDECEA; border: 1px solid #C0392B22; }
+.calc-output.calc-maybe { background: #FDF8EC; border: 1px solid var(--c-mustard); }
+.calc-verdict { font-weight: 900; font-size: 1.1rem; display: block; margin-top: var(--sp-1); }
+.calc-verdict.buy  { color: #2D6A4F; }
+.calc-verdict.skip { color: #C0392B; }
+.calc-verdict.maybe { color: #7A5C00; }
+
+/* Always-visible kg price input */
+.kgprice-row {
+  margin-bottom: var(--sp-4);
+}
+.kgprice-row label span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--c-muted);
+  margin-bottom: 4px;
+}
+.kgprice-row input {
+  width: 100%;
+  padding: 10px var(--sp-3);
+  border: 2px solid var(--c-border);
+  border-radius: var(--r-sm);
+  font-size: 1.1rem;
+  font-family: inherit;
   font-weight: 700;
-  font-size: 1rem;
+  background: var(--c-bg);
 }
-.verdict.yes { color: var(--c-sage); }
-.verdict.no  { color: var(--c-terracotta); }
+.err-banner {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  background: #FDECEA; border: 1px solid #C0392B44;
+  border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4); font-size: 0.9rem; color: #7a0000;
+}
+.err-banner i { flex-shrink: 0; font-size: 1rem; margin-top: 2px; }
+.err-banner span { flex: 1; }
+.err-close {
+  background: none; border: none; cursor: pointer; color: #7a0000;
+  font-size: 1rem; padding: 0; line-height: 1; flex-shrink: 0;
+}
+
+@media (max-width: 500px) {
+  .calc-row { flex-direction: column; }
+  .result-header { flex-direction: column; gap: var(--sp-1); }
+}
 </style>
 
 <h1>Identify</h1>
-<p class="lede">Photo a label, logo, or tag. Get the brand tier and estimated resale value.</p>
+<p class="lede">Enter the shop's price per kg, then photo a label or tag.</p>
+
+<div id="err" class="err-banner" style="display:none">
+  <i class="ph ph-warning"></i>
+  <span id="err-msg"></span>
+  <button class="err-close" onclick="document.getElementById('err').style.display='none'"><i class="ph ph-x"></i></button>
+</div>
+
+<div class="kgprice-row">
+  <label>
+    <span>Shop price per kg (£)</span>
+    <input type="number" id="calc-kgprice" placeholder="e.g. 15" min="0.01" step="0.5">
+  </label>
+</div>
 
 <div class="upload-zone" id="upload-zone">
   <input type="file" id="file-input" accept="image/*" capture="environment">
@@ -130,42 +196,54 @@
 
 <button class="btn-identify" id="btn-identify" disabled>Identify brand</button>
 
-<div class="result-card" id="result-card" style="display:none">
-  <div class="result-header">
-    <span class="result-brand" id="result-brand"></span>
-    <span class="tier-badge" id="tier-badge"></span>
+<div id="progress-wrap" style="display:none;margin:var(--sp-3) 0">
+  <div style="height:4px;background:var(--c-border);border-radius:2px;overflow:hidden">
+    <div id="progress-bar" style="height:100%;background:var(--c-terracotta);width:0%;transition:width 0.4s ease"></div>
   </div>
-  <p class="result-tier-label" id="result-tier-label"></p>
-  <p class="result-value" id="result-value"></p>
-  <p class="result-notes" id="result-notes"></p>
-  <p class="result-confidence" id="result-confidence"></p>
+  <div id="progress-label" style="font-size:0.8rem;color:var(--c-muted);margin-top:5px"></div>
+</div>
 
-  <div class="calc-section" id="calc-section" style="display:none">
-    <h3>Worth buying?</h3>
-    <div class="calc-row">
-      <label>
-        <span>Item weight (g)</span>
-        <input type="number" id="calc-weight" placeholder="e.g. 400" min="1">
-      </label>
-      <label>
-        <span>Shop price per kg (£)</span>
-        <input type="number" id="calc-kgprice" placeholder="e.g. 15" min="0.01" step="0.5">
-      </label>
+<div class="result-card" id="result-card" style="display:none">
+  <div class="verdict-banner" id="verdict-banner"></div>
+  <div class="result-body">
+    <div class="result-header">
+      <span class="result-brand" id="result-brand"></span>
+      <span class="tier-badge" id="tier-badge"></span>
     </div>
-    <div class="calc-output" id="calc-output" style="display:none"></div>
+    <p class="result-meta" id="result-meta"></p>
+    <p class="result-value" id="result-value"></p>
+    <p class="result-notes" id="result-notes"></p>
+
+    <div class="calc-section" id="calc-section" style="display:none">
+      <div class="calc-row">
+        <label>
+          <span>Item weight (g)</span>
+          <input type="number" id="calc-weight" placeholder="e.g. 400" min="1">
+        </label>
+      </div>
+      <div class="calc-output" id="calc-output" style="display:none"></div>
+    </div>
   </div>
 </div>
 
 <script>
-const zone       = document.getElementById('upload-zone');
-const fileInput  = document.getElementById('file-input');
-const previewImg = document.getElementById('preview-img');
+const zone         = document.getElementById('upload-zone');
+const fileInput    = document.getElementById('file-input');
+const previewImg   = document.getElementById('preview-img');
 const uploadPrompt = document.getElementById('upload-prompt');
 const btnIdentify  = document.getElementById('btn-identify');
 const resultCard   = document.getElementById('result-card');
 
 let selectedFile = null;
-let currentMin = null, currentMax = null;
+let currentMin = null, currentMax = null, currentTier = null;
+
+const TIER_VERDICT = {
+  S: { cls: 'buy',   text: 'Defo buy — top shelf brand' },
+  A: { cls: 'buy',   text: 'Good find — worth it' },
+  B: { cls: 'maybe', text: 'Maybe — depends on price' },
+  C: { cls: 'maybe', text: 'Iffy — low margin brand' },
+  F: { cls: 'skip',  text: "Don't bother — not worth reselling" },
+};
 
 zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
@@ -189,26 +267,72 @@ function setFile(f) {
   resultCard.style.display = 'none';
 }
 
+function showErr(msg) {
+  const el = document.getElementById('err');
+  document.getElementById('err-msg').textContent = msg;
+  el.style.display = 'flex';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar  = document.getElementById('progress-bar');
+const progressLabel = document.getElementById('progress-label');
+let progressTimer = null;
+
+function setProgress(pct, label) {
+  progressBar.style.width = pct + '%';
+  if (label) progressLabel.textContent = label;
+}
+
+function startProgress() {
+  progressWrap.style.display = '';
+  setProgress(0, 'Scanning...');
+  setTimeout(() => setProgress(25, 'Scanning...'), 50);
+  setTimeout(() => setProgress(55, 'Identifying brand...'), 800);
+  setTimeout(() => setProgress(75, 'Estimating value...'), 2200);
+  setTimeout(() => setProgress(88, 'Almost done...'), 4000);
+}
+
+function finishProgress() {
+  setProgress(100, '');
+  setTimeout(() => { progressWrap.style.display = 'none'; setProgress(0, ''); }, 400);
+}
+
 btnIdentify.addEventListener('click', async () => {
   if (!selectedFile) return;
   btnIdentify.disabled = true;
   btnIdentify.textContent = 'Identifying...';
   resultCard.style.display = 'none';
-  currentMin = currentMax = null;
+  currentMin = currentMax = currentTier = null;
 
+  startProgress();
   const form = new FormData();
   form.append('image', selectedFile);
 
   try {
     const resp = await fetch('/api/value/identify', { method: 'POST', body: form });
+    finishProgress();
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.detail || `HTTP ${resp.status}`);
     }
     const d = await resp.json();
 
-    document.getElementById('result-brand').textContent = d.brand || 'Unknown brand';
+    // Verdict banner
+    const banner = document.getElementById('verdict-banner');
+    currentTier = d.tier;
+    if (d.tier && TIER_VERDICT[d.tier]) {
+      const v = TIER_VERDICT[d.tier];
+      banner.textContent = v.text;
+      banner.className = `verdict-banner ${v.cls}`;
+      banner.style.display = '';
+    } else {
+      banner.style.display = 'none';
+    }
 
+    // Brand + tier badge
+    document.getElementById('result-brand').textContent = d.brand || (d.item_type ? `Unbranded ${d.item_type}` : 'Unknown item');
     const badge = document.getElementById('tier-badge');
     if (d.tier) {
       badge.textContent = d.tier;
@@ -218,16 +342,30 @@ btnIdentify.addEventListener('click', async () => {
       badge.className = 'tier-badge tier-unknown';
     }
 
-    document.getElementById('result-tier-label').textContent = d.tier_label || '';
+    // Meta line: item type + confidence
+    const metaParts = [];
+    if (d.item_type) metaParts.push(d.item_type);
+    if (d.confidence) metaParts.push(`${d.confidence} confidence`);
+    document.getElementById('result-meta').textContent = metaParts.join(' · ');
 
+    // Price
     if (d.min_value_gbp != null && d.max_value_gbp != null) {
+      const sourceLabel = d.price_source === 'ebay+ai' ? ' · eBay+AI'
+                        : d.price_source === 'ai'      ? ' · AI estimate'
+                        : d.price_source === 'database' ? ' · database'
+                        : '';
       document.getElementById('result-value').textContent =
-        `Est. resale £${d.min_value_gbp}–£${d.max_value_gbp}`;
+        `Est. Depop resale £${d.min_value_gbp}–£${d.max_value_gbp}${sourceLabel}`;
       currentMin = d.min_value_gbp;
       currentMax = d.max_value_gbp;
       document.getElementById('calc-section').style.display = 'block';
+
+      // Pre-fill weight if estimated
+      if (d.estimated_weight_g) {
+        document.getElementById('calc-weight').value = d.estimated_weight_g;
+      }
     } else {
-      document.getElementById('result-value').textContent = d.tier ? '' : 'Brand not in database yet';
+      document.getElementById('result-value').textContent = '';
       document.getElementById('calc-section').style.display = 'none';
     }
 
@@ -236,13 +374,11 @@ btnIdentify.addEventListener('click', async () => {
     notesEl.textContent = notes;
     notesEl.style.display = notes ? '' : 'none';
 
-    document.getElementById('result-confidence').textContent =
-      d.confidence ? `Confidence: ${d.confidence}` : '';
-
     resultCard.style.display = 'block';
     updateCalc();
   } catch (e) {
-    alert('Error: ' + e.message);
+    finishProgress();
+    showErr(e.message);
   } finally {
     btnIdentify.disabled = false;
     btnIdentify.textContent = 'Identify brand';
@@ -256,21 +392,34 @@ function updateCalc() {
   const out = document.getElementById('calc-output');
   if (!w || !kp) { out.style.display = 'none'; return; }
 
-  const buyCost = (w / 1000) * kp;
+  const buyCost    = (w / 1000) * kp;
   const marginLow  = currentMin - buyCost;
   const marginHigh = currentMax - buyCost;
-  const maxBuy = currentMin * 0.4;
-  const worth  = buyCost <= maxBuy;
+  const roi        = marginLow / buyCost;
 
+  let verdict, cls;
+  if (roi >= 1.5) {
+    verdict = 'Defo buy — great margin'; cls = 'buy';
+  } else if (roi >= 0.5) {
+    verdict = 'Worth it — decent margin'; cls = 'buy';
+  } else if (roi >= 0) {
+    verdict = 'Marginal — slim profit'; cls = 'maybe';
+  } else {
+    verdict = "Don't buy — margin too thin"; cls = 'skip';
+  }
+
+  out.className = `calc-output calc-${cls}`;
   out.innerHTML = `
-    Buy cost: <strong>£${buyCost.toFixed(2)}</strong>&emsp;
-    Est. resale: <strong>£${currentMin}–£${currentMax}</strong>&emsp;
+    Buy cost: <strong>£${buyCost.toFixed(2)}</strong> &nbsp;·&nbsp;
+    Est. resale: <strong>£${currentMin}–£${currentMax}</strong> &nbsp;·&nbsp;
     Margin: <strong>£${marginLow.toFixed(0)}–£${marginHigh.toFixed(0)}</strong>
-    <br><span class="verdict ${worth ? 'yes' : 'no'}">${worth ? 'Worth buying' : 'Margin too thin'}</span>
+    <span class="calc-verdict ${cls}">${verdict}</span>
   `;
   out.style.display = 'block';
 }
 
 document.getElementById('calc-weight').addEventListener('input', updateCalc);
 document.getElementById('calc-kgprice').addEventListener('input', updateCalc);
+// re-run calc if kg price was already set when result arrives
+document.getElementById('calc-kgprice').addEventListener('change', updateCalc);
 </script>

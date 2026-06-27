@@ -1,0 +1,632 @@
+<style>
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── Form elements ───────────────────────────── */
+.field { margin-bottom: var(--sp-4); }
+.field label, .field-label {
+  display: block; font-size: 0.85rem; color: var(--c-muted); margin-bottom: 5px;
+}
+.field input, .field select, .field textarea {
+  width: 100%; padding: 13px var(--sp-4);
+  border: 2px solid var(--c-border); border-radius: var(--r-sm);
+  font-size: 1rem; font-family: inherit; background: var(--c-surface);
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus {
+  outline: none; border-color: var(--c-terracotta);
+}
+.field-row { display: flex; gap: var(--sp-3); }
+.field-row .field { flex: 1; margin-bottom: 0; }
+
+/* ── Buttons ─────────────────────────────────── */
+.btn {
+  display: block; width: 100%;
+  padding: var(--sp-4); border: none;
+  border-radius: 14px 4px 14px 4px;
+  font-size: 1rem; font-family: inherit; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.01em;
+  transition: opacity 0.15s; text-align: center; text-decoration: none;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:not(:disabled):hover { opacity: 0.85; }
+.btn-primary { background: var(--c-terracotta); color: white; }
+.btn-secondary { background: #E8E0D8; color: var(--c-fg); }
+.btn-sage { background: var(--c-sage); color: white; }
+.btn-row { display: flex; gap: var(--sp-3); margin-top: var(--sp-4); }
+.btn-row .btn { flex: 1; }
+
+/* Sale type toggle */
+.sale-toggle { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.sale-opt {
+  flex: 1; padding: var(--sp-3); border: 2px solid var(--c-border);
+  border-radius: var(--r-sm); background: var(--c-surface);
+  font-family: inherit; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; text-align: center; transition: all 0.1s;
+}
+.sale-opt.selected { border-color: var(--c-terracotta); background: #FDF5F3; color: var(--c-terracotta); }
+
+/* ── Start view ──────────────────────────────── */
+.start-hero { text-align: center; padding: var(--sp-6) 0 var(--sp-5); }
+.start-hero i { font-size: 3.2rem; color: var(--c-terracotta); display: block; margin-bottom: var(--sp-3); }
+
+/* ── Hunt view ───────────────────────────────── */
+.hunt-card {
+  background: var(--c-surface); border: 2px solid var(--c-border);
+  border-radius: var(--r-blob); padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-5);
+}
+.hunt-card h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.hunt-meta { font-size: 0.85rem; color: var(--c-muted); }
+.hunt-meta span + span::before { content: ' · '; }
+
+.items-list { margin-bottom: var(--sp-5); }
+.items-list .empty {
+  text-align: center; padding: var(--sp-6) 0;
+  color: var(--c-muted); border: 2px dashed var(--c-border);
+  border-radius: var(--r-md);
+}
+.items-list .empty i { font-size: 2.5rem; display: block; margin-bottom: var(--sp-2); }
+
+.item-card {
+  background: var(--c-surface); border: 1px solid var(--c-border);
+  border-radius: var(--r-md); display: flex; align-items: center;
+  gap: var(--sp-3); padding: var(--sp-3); margin-bottom: var(--sp-2);
+}
+.item-thumb {
+  width: 60px; height: 60px; border-radius: var(--r-sm);
+  object-fit: cover; flex-shrink: 0;
+}
+.item-thumb-placeholder {
+  width: 60px; height: 60px; border-radius: var(--r-sm);
+  background: var(--c-bg); display: flex; align-items: center;
+  justify-content: center; color: var(--c-muted); font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.item-info { flex: 1; min-width: 0; }
+.item-desc { font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-sub { font-size: 0.8rem; color: var(--c-muted); }
+.item-guess { font-weight: 700; color: var(--c-terracotta); white-space: nowrap; }
+.item-del { background: none; border: none; cursor: pointer; color: var(--c-muted); padding: var(--sp-2); font-size: 1.1rem; }
+.item-del:hover { color: #C0392B; }
+
+/* ── Add item view ───────────────────────────── */
+.camera-zone {
+  position: relative; border: 2px dashed var(--c-border);
+  border-radius: var(--r-blob); min-height: 140px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: var(--c-surface);
+  margin-bottom: var(--sp-3); transition: border-color 0.15s;
+}
+.camera-zone:hover { border-color: var(--c-terracotta); }
+.camera-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.camera-prompt { text-align: center; color: var(--c-muted); pointer-events: none; }
+.camera-prompt i { font-size: 2.2rem; display: block; margin-bottom: 6px; }
+.camera-prompt p { margin: 0; font-size: 0.9rem; }
+
+.photo-source-row {
+  display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3);
+}
+.photo-src-btn {
+  flex: 1; padding: var(--sp-4);
+  border: 2px dashed var(--c-border); border-radius: var(--r-blob);
+  background: var(--c-surface); font-family: inherit;
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--sp-2); transition: border-color 0.15s, background 0.15s;
+  color: var(--c-muted);
+}
+.photo-src-btn i { font-size: 1.4rem; }
+.photo-src-btn:hover, .photo-src-btn:active {
+  border-color: var(--c-terracotta); background: #FDF5F3; color: var(--c-terracotta);
+}
+.photo-src-btn.has-photos {
+  border-color: var(--c-sage); background: #F0F7F0; color: var(--c-sage);
+  border-style: solid;
+}
+
+.photo-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.photo-grid img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-sm);
+}
+.photo-grid img.uploading { opacity: 0.4; }
+
+.cat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.cat-btn {
+  padding: 10px var(--sp-2); border: 2px solid var(--c-border);
+  border-radius: var(--r-sm); background: var(--c-surface);
+  font-family: inherit; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; text-align: center; transition: all 0.1s;
+}
+.cat-btn.sel { background: var(--c-terracotta); color: white; border-color: var(--c-terracotta); }
+
+.price-wrap { position: relative; }
+.price-wrap .sym {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-weight: 700; color: var(--c-muted); pointer-events: none;
+}
+.price-wrap input { padding-left: 26px; }
+
+/* ── Complete view ───────────────────────────── */
+.complete { text-align: center; padding: var(--sp-8) 0; }
+.complete-ring {
+  width: 110px; height: 110px; border-radius: 50%;
+  background: var(--c-sage); display: flex; align-items: center;
+  justify-content: center; margin: 0 auto var(--sp-5);
+  animation: pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.complete-ring i { font-size: 3.5rem; color: white; }
+.complete h2 { margin: 0 0 var(--sp-2); font-size: 1.8rem; }
+.complete-stats { color: var(--c-muted); font-size: 1rem; margin-bottom: var(--sp-6); }
+.complete-stats strong { color: var(--c-fg); }
+.complete-actions { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; animation: spin 0.7s linear infinite; }
+
+@media (max-width: 380px) {
+  .cat-grid { grid-template-columns: repeat(4, 1fr); }
+  .cat-btn { padding: 8px 4px; font-size: 0.75rem; }
+  .field-row { flex-direction: column; }
+  .field-row .field { flex: none; width: 100%; }
+  .btn-row { gap: var(--sp-2); }
+  .sale-toggle .sale-opt { padding: var(--sp-2); font-size: 0.85rem; }
+  .complete-ring { width: 90px; height: 90px; }
+  .complete-ring i { font-size: 2.8rem; }
+}
+
+/* Error banner */
+.err-banner {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  background: #FDECEA; border: 1px solid #C0392B44;
+  border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4); font-size: 0.9rem; color: #7a0000;
+}
+.err-banner i { flex-shrink: 0; font-size: 1rem; margin-top: 2px; }
+.err-banner span { flex: 1; }
+.err-close { background: none; border: none; cursor: pointer; color: #7a0000; font-size: 1rem; padding: 0; flex-shrink: 0; }
+</style>
+
+<div id="err" class="err-banner" style="display:none">
+  <i class="ph ph-warning"></i>
+  <span id="err-msg"></span>
+  <button class="err-close" onclick="document.getElementById('err').style.display='none'"><i class="ph ph-x"></i></button>
+</div>
+
+<h1>Hunt</h1>
+
+<!-- ── Start ─────────────────────────────────── -->
+<div id="view-start" class="view active">
+  <div class="start-hero">
+    <i class="ph ph-crosshair"></i>
+    <p class="lede" style="margin-bottom:0">Start a new buying trip</p>
+  </div>
+
+  <div class="sale-toggle">
+    <button class="sale-opt selected" data-type="kgsale">KG sale</button>
+    <button class="sale-opt" data-type="fixed">Fixed price</button>
+  </div>
+
+  <div class="field">
+    <label for="s-location">Location</label>
+    <select id="s-location">
+      <option value="">No specific location</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="s-date">Date</label>
+    <input type="date" id="s-date">
+  </div>
+  <div class="field" id="s-cost-field">
+    <label for="s-cost">Total spent (£)</label>
+    <input type="number" id="s-cost" placeholder="e.g. 25" min="0" step="0.50">
+  </div>
+  <div class="field" id="s-kgprice-field">
+    <label for="s-kgprice">Price per kg (£/kg)</label>
+    <input type="number" id="s-kgprice" placeholder="e.g. 8" min="0" step="0.50">
+  </div>
+
+  <button class="btn btn-primary" id="btn-start">Start Hunt</button>
+</div>
+
+<!-- ── Active hunt ────────────────────────────── -->
+<div id="view-hunt" class="view">
+  <div class="hunt-card">
+    <h2 id="hunt-name"></h2>
+    <div class="hunt-meta">
+      <span id="hunt-date"></span>
+      <span id="hunt-spent"></span>
+      <span id="hunt-count"></span>
+    </div>
+  </div>
+
+  <div class="items-list" id="items-list">
+    <div class="empty" id="items-empty">
+      <i class="ph ph-handbag"></i>
+      <p>No items yet</p>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="btn-add">
+      <i class="ph ph-plus"></i> Add item
+    </button>
+    <button class="btn btn-sage" id="btn-done">
+      Done <i class="ph ph-check"></i>
+    </button>
+  </div>
+</div>
+
+<!-- ── Add item ───────────────────────────────── -->
+<div id="view-add" class="view">
+  <h2 style="margin-bottom:var(--sp-4)">Add item</h2>
+
+  <div class="photo-source-row">
+    <button class="photo-src-btn" id="btn-camera">
+      <i class="ph ph-camera"></i> Camera
+    </button>
+    <button class="photo-src-btn" id="btn-gallery">
+      <i class="ph ph-images"></i> Camera roll
+    </button>
+  </div>
+  <!-- hidden inputs, one forces camera, one opens gallery -->
+  <input type="file" id="photo-in-camera" accept="image/*" capture="environment" multiple style="display:none">
+  <input type="file" id="photo-in-gallery" accept="image/*" multiple style="display:none">
+  <div class="photo-grid" id="photo-grid" style="display:none"></div>
+
+  <div class="field-label">Category</div>
+  <div class="cat-grid" id="cat-grid">
+    <button class="cat-btn" data-cat="top">Top</button>
+    <button class="cat-btn" data-cat="bottom">Bottom</button>
+    <button class="cat-btn" data-cat="dress">Dress</button>
+    <button class="cat-btn" data-cat="jacket">Jacket</button>
+    <button class="cat-btn" data-cat="skirt">Skirt</button>
+    <button class="cat-btn" data-cat="shoes">Shoes</button>
+    <button class="cat-btn" data-cat="bag">Bag</button>
+    <button class="cat-btn" data-cat="other">Other</button>
+  </div>
+
+  <div class="field">
+    <label for="item-desc">Description (optional)</label>
+    <input type="text" id="item-desc" placeholder="e.g. Zara linen blazer">
+  </div>
+  <div class="field">
+    <label for="item-brand">Brand (optional)</label>
+    <input type="text" id="item-brand" placeholder="e.g. Zara">
+  </div>
+
+  <div class="field-row" style="margin-bottom:var(--sp-4)">
+    <div class="field">
+      <label for="item-guess">Nina's price guess (£)</label>
+      <div class="price-wrap">
+        <span class="sym">£</span>
+        <input type="number" id="item-guess" placeholder="0" min="0" step="0.50">
+      </div>
+    </div>
+    <div class="field" id="weight-field">
+      <label for="item-weight">Weight (g)</label>
+      <input type="number" id="item-weight" placeholder="e.g. 400">
+    </div>
+    <div class="field" id="purchase-field" style="display:none">
+      <label for="item-purchase">Price paid (£)</label>
+      <div class="price-wrap">
+        <span class="sym">£</span>
+        <input type="number" id="item-purchase" placeholder="0" min="0" step="0.50">
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" style="flex:1" id="btn-cancel">Cancel</button>
+    <button class="btn btn-primary" style="flex:2" id="btn-save">Add to hunt</button>
+  </div>
+</div>
+
+<!-- ── Complete ───────────────────────────────── -->
+<div id="view-complete" class="view">
+  <div class="complete">
+    <div class="complete-ring"><i class="ph ph-check-fat"></i></div>
+    <h2>Hunt complete!</h2>
+    <p class="complete-stats" id="complete-stats"></p>
+    <div class="complete-actions">
+      <a href="/inventory" class="btn btn-sage">View inventory</a>
+      <button class="btn btn-secondary" id="btn-new">Start another hunt</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const HUNT_KEY = 'apparel_hunt_id';
+let hunt = null;
+let saleType = 'kgsale';
+let selCat = null;
+let pendingPhotos = [];
+let uploading = 0;
+
+const $ = id => document.getElementById(id);
+
+function showErr(msg) {
+  const el = $('err');
+  $('err-msg').textContent = msg;
+  el.style.display = 'flex';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+function show(name) {
+  ['start','hunt','add','complete'].forEach(v => {
+    const el = $('view-' + v);
+    el.classList.toggle('active', v === name);
+  });
+  window.scrollTo(0, 0);
+}
+
+// ── Init ──────────────────────────────────────
+async function init() {
+  $('s-date').value = today();
+  await loadLocations();
+
+  const saved = localStorage.getItem(HUNT_KEY);
+  if (saved) {
+    try {
+      const h = await api(`/api/hunt/${saved}`);
+      if (h && h.status === 'active') { hunt = h; renderHunt(); show('hunt'); return; }
+    } catch (_) {}
+    localStorage.removeItem(HUNT_KEY);
+  }
+  show('start');
+}
+
+async function loadLocations() {
+  try {
+    const locs = await api('/api/hunt/locations');
+    const sel = $('s-location');
+    locs.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id;
+      o.textContent = l.name + (l.area ? ` — ${l.area}` : '');
+      sel.appendChild(o);
+    });
+  } catch (_) {}
+}
+
+// ── Sale type toggle ───────────────────────────
+document.querySelectorAll('.sale-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sale-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    saleType = btn.dataset.type;
+    $('s-kgprice-field').style.display = saleType === 'kgsale' ? '' : 'none';
+  });
+});
+
+// ── Start hunt ─────────────────────────────────
+$('btn-start').addEventListener('click', async () => {
+  const locSel = $('s-location');
+  const locId = locSel.value ? parseInt(locSel.value) : null;
+  const locName = locSel.selectedOptions[0]?.text || '';
+  const date = $('s-date').value || today();
+  const cost = parseFloat($('s-cost').value) || 0;
+  const kgPrice = parseFloat($('s-kgprice').value) || null;
+  const name = locId ? locName.split(' —')[0] : `Hunt ${date}`;
+
+  const btn = $('btn-start');
+  btn.disabled = true; btn.textContent = 'Starting...';
+  try {
+    hunt = await api('/api/hunt/', {
+      method: 'POST',
+      json: { name, date, location_id: locId, sale_type: saleType, cost_gbp: cost, kg_price_gbp: kgPrice },
+    });
+    localStorage.setItem(HUNT_KEY, hunt.id);
+    renderHunt();
+    show('hunt');
+  } catch (e) { showErr(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Start Hunt'; }
+});
+
+// ── Hunt view ──────────────────────────────────
+function renderHunt() {
+  if (!hunt) return;
+  $('hunt-name').textContent = hunt.name;
+  $('hunt-date').textContent = fmtDate(hunt.date);
+  $('hunt-spent').textContent = `£${hunt.cost_gbp} spent`;
+  const items = hunt.items || [];
+  const est = items.reduce((s, i) => s + (i.nina_price_guess_gbp || 0), 0);
+  $('hunt-count').textContent = `${items.length} item${items.length !== 1 ? 's' : ''}` +
+    (est > 0 ? ` · est. £${est.toFixed(0)}` : '');
+
+  const list = $('items-list');
+  list.querySelectorAll('.item-card').forEach(el => el.remove());
+  $('items-empty').style.display = items.length ? 'none' : '';
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    const ph = item.photos && item.photos[0];
+    card.innerHTML = `
+      ${ph
+        ? `<img class="item-thumb" src="${ph.url}" alt="" loading="lazy">`
+        : `<div class="item-thumb-placeholder"><i class="ph ph-handbag"></i></div>`}
+      <div class="item-info">
+        <div class="item-desc">${esc(item.description || item.category || 'Item')}</div>
+        <div class="item-sub">${[item.category, item.brand_name, item.weight_g ? item.weight_g+'g' : ''].filter(Boolean).join(' · ')}</div>
+      </div>
+      ${item.nina_price_guess_gbp != null ? `<div class="item-guess">£${item.nina_price_guess_gbp}</div>` : ''}
+      <button class="item-del" data-id="${item.id}" title="Remove"><i class="ph ph-trash"></i></button>`;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('.item-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id);
+      try {
+        await api(`/api/hunt/${hunt.id}/items/${id}`, { method: 'DELETE' });
+        hunt = await api(`/api/hunt/${hunt.id}`);
+        renderHunt();
+      } catch (e) { showErr(e.message); }
+    });
+  });
+}
+
+$('btn-add').addEventListener('click', () => { resetItemForm(); show('add'); });
+$('btn-cancel').addEventListener('click', () => show('hunt'));
+
+// ── Add item form ──────────────────────────────
+$('cat-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn) return;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  selCat = btn.dataset.cat;
+  // Show weight/purchase field based on hunt type
+  const isKg = hunt && hunt.sale_type === 'kgsale';
+  $('weight-field').style.display = isKg ? '' : 'none';
+  $('purchase-field').style.display = isKg ? 'none' : '';
+});
+
+$('btn-camera').addEventListener('click', () => $('photo-in-camera').click());
+$('btn-gallery').addEventListener('click', () => $('photo-in-gallery').click());
+
+function onPhotoInputChange(input) {
+  input.addEventListener('change', async () => {
+    for (const f of Array.from(input.files)) await uploadPhoto(f);
+    input.value = '';
+  });
+}
+onPhotoInputChange($('photo-in-camera'));
+onPhotoInputChange($('photo-in-gallery'));
+
+async function uploadPhoto(file) {
+  uploading++;
+  updatePhotoButtons();
+
+  const img = document.createElement('img');
+  img.src = URL.createObjectURL(file);
+  img.className = 'uploading';
+  $('photo-grid').appendChild(img);
+  $('photo-grid').style.display = '';
+
+  const fd = new FormData();
+  fd.append('image', file);
+  try {
+    const resp = await fetch('/api/hunt/photos', { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error(`Upload failed ${resp.status}`);
+    const data = await resp.json();
+    pendingPhotos.push(data.filename);
+    img.src = data.url;
+    img.classList.remove('uploading');
+  } catch (_) { img.remove(); }
+  finally { uploading--; updatePhotoButtons(); }
+}
+
+function updatePhotoButtons() {
+  const hasPhotos = pendingPhotos.length > 0;
+  const busy = uploading > 0;
+  [$('btn-camera'), $('btn-gallery')].forEach(btn => {
+    btn.classList.toggle('has-photos', hasPhotos && !busy);
+  });
+  $('btn-camera').innerHTML = busy
+    ? `<i class="ph ph-spinner spin"></i> Uploading...`
+    : `<i class="ph ph-camera"></i> Camera`;
+  $('btn-gallery').innerHTML = `<i class="ph ph-images"></i> Camera roll${hasPhotos && !busy ? ` (${pendingPhotos.length})` : ''}`;
+}
+
+$('btn-save').addEventListener('click', async () => {
+  if (uploading > 0) { showErr('Photos still uploading — please wait'); return; }
+
+  const btn = $('btn-save');
+  btn.disabled = true; btn.textContent = 'Adding...';
+  const isKg = hunt && hunt.sale_type === 'kgsale';
+
+  try {
+    await api(`/api/hunt/${hunt.id}/items`, {
+      method: 'POST',
+      json: {
+        description: $('item-desc').value.trim() || null,
+        category: selCat,
+        brand_name: $('item-brand').value.trim() || null,
+        nina_price_guess_gbp: parseFloat($('item-guess').value) || null,
+        weight_g: isKg ? (parseFloat($('item-weight').value) || null) : null,
+        purchase_price_gbp: !isKg ? (parseFloat($('item-purchase').value) || null) : null,
+        photo_filenames: pendingPhotos,
+      },
+    });
+    hunt = await api(`/api/hunt/${hunt.id}`);
+    renderHunt();
+    show('hunt');
+  } catch (e) { showErr(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Add to hunt'; }
+});
+
+function resetItemForm() {
+  selCat = null; pendingPhotos = []; uploading = 0;
+  $('item-desc').value = ''; $('item-brand').value = '';
+  $('item-guess').value = ''; $('item-weight').value = ''; $('item-purchase').value = '';
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('sel'));
+  $('photo-grid').innerHTML = ''; $('photo-grid').style.display = 'none';
+  updatePhotoButtons();
+  // Show correct cost field based on hunt type
+  const isKg = hunt && hunt.sale_type === 'kgsale';
+  $('weight-field').style.display = isKg ? '' : 'none';
+  $('purchase-field').style.display = isKg ? 'none' : '';
+}
+
+// ── Complete ───────────────────────────────────
+$('btn-done').addEventListener('click', async () => {
+  const items = hunt.items || [];
+  if (items.length === 0 && !confirm('No items added — mark hunt complete anyway?')) return;
+
+  try {
+    await api(`/api/hunt/${hunt.id}/complete`, { method: 'POST' });
+    const est = items.reduce((s, i) => s + (i.nina_price_guess_gbp || 0), 0);
+    $('complete-stats').innerHTML =
+      `<strong>${items.length} item${items.length !== 1 ? 's' : ''}</strong>` +
+      (est > 0 ? ` · est. <strong>£${est.toFixed(0)}</strong>` : '') +
+      ` · <strong>£${hunt.cost_gbp}</strong> spent`;
+    localStorage.removeItem(HUNT_KEY);
+    hunt = null;
+    show('complete');
+  } catch (e) { showErr(e.message); }
+});
+
+$('btn-new').addEventListener('click', () => {
+  $('s-cost').value = ''; $('s-kgprice').value = '';
+  $('s-location').value = '';
+  $('s-date').value = today();
+  show('start');
+});
+
+// ── Helpers ────────────────────────────────────
+async function api(url, opts = {}) {
+  const init = { method: opts.method || 'GET' };
+  if (opts.json) { init.headers = {'Content-Type':'application/json'}; init.body = JSON.stringify(opts.json); }
+  const r = await fetch(url, init);
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  if (r.status === 204) return null;
+  return r.json();
+}
+
+function today() { return new Date().toISOString().slice(0, 10); }
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>

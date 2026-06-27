@@ -189,6 +189,11 @@ if OUTPUT_DIR.exists():
         if p.is_dir():
             app.mount(f"/{sub}", StaticFiles(directory=p), name=sub)
 
+# User-uploaded item photos
+_photos_dir = PROJECT_ROOT / "data" / "photos"
+_photos_dir.mkdir(exist_ok=True, parents=True)
+app.mount("/photos", StaticFiles(directory=_photos_dir), name="photos")
+
 
 def _admin_gated(path: str, request: Request) -> "RedirectResponse | None":
     """Return a redirect-to-login response if path is admin-only and the
